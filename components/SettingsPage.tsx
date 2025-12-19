@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Theme, BranchLocation, UserLocationConfig } from '../types';
 import { db, ref, onValue, set } from '../utils/firebase';
-import { parseCoordinates } from '../utils/locationUtils';
+import { parseCoordinates, resolveShortLink } from '../utils/locationUtils';
 
 interface SettingsPageProps {
   users: User[];
@@ -31,6 +31,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   const [tempBranchName, setTempBranchName] = useState('');
   const [tempBranchAddress, setTempBranchAddress] = useState('');
   const [tempBranchLocation, setTempBranchLocation] = useState('');
+  const [isResolving, setIsResolving] = useState(false);
 
   useEffect(() => {
     const locRef = ref(db, 'userLocations');
@@ -71,10 +72,28 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   };
 
-  const saveBranch = () => {
-    const coords = parseCoordinates(tempBranchLocation);
-    if (!tempBranchName || !coords) {
-      alert('يرجى التأكد من اسم الفرع وإحداثيات الموقع (مثال: 30.123, 31.456 أو رابط خرائط جوجل)');
+  const saveBranch = async () => {
+    if (!tempBranchName || !tempBranchLocation) {
+      alert('يرجى إكمال البيانات');
+      return;
+    }
+
+    let locationToParse = tempBranchLocation;
+    
+    // Check if it's a shortened Google Maps link
+    if (tempBranchLocation.includes('maps.app.goo.gl') || tempBranchLocation.includes('goo.gl/maps')) {
+      setIsResolving(true);
+      const resolved = await resolveShortLink(tempBranchLocation);
+      if (resolved) {
+        locationToParse = resolved;
+      }
+      setIsResolving(false);
+    }
+
+    const coords = parseCoordinates(locationToParse);
+    
+    if (!coords) {
+      alert('تعذر استخراج الإحداثيات من هذا الرابط. يرجى التأكد من الرابط أو إدخال الإحداثيات يدوياً (مثال: 30.123, 31.456)');
       return;
     }
 
@@ -167,7 +186,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     <div key={b.id} className="flex items-center justify-between p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-white/5">
                       <div>
                         <div className="font-bold">{b.name}</div>
-                        <div className="text-xs opacity-60">{b.address} | {b.latitude}, {b.longitude}</div>
+                        <div className="text-xs opacity-60">{b.address} | {b.latitude.toFixed(6)}, {b.longitude.toFixed(6)}</div>
                       </div>
                       <button 
                         onClick={() => setCurrentBranches(prev => prev.filter((_, i) => i !== idx))}
@@ -209,16 +228,30 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               />
             </div>
             <div>
-              <label className="block text-sm mb-1 opacity-60">لوكيشن جوجل ماب أو إحداثيات</label>
+              <label className="block text-sm mb-1 opacity-60">رابط لوكيشن جوجل أو إحداثيات</label>
               <input 
                 className="w-full px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none"
-                placeholder="مثال: 30.123, 31.456"
+                placeholder="الصق الرابط هنا (يقبل الروابط المختصرة)"
                 value={tempBranchLocation}
                 onChange={(e) => setTempBranchLocation(e.target.value)}
               />
             </div>
+            
+            {isResolving && (
+              <div className="flex items-center gap-2 text-blue-500 text-sm font-bold animate-pulse justify-center py-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
+                جاري استخراج الموقع من الرابط...
+              </div>
+            )}
+
             <div className="flex gap-2 pt-4">
-              <button onClick={saveBranch} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">إضافة</button>
+              <button 
+                onClick={saveBranch} 
+                disabled={isResolving}
+                className={`flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold ${isResolving ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isResolving ? 'انتظر...' : 'إضافة'}
+              </button>
               <button onClick={() => setShowBranchModal(false)} className="flex-1 bg-gray-200 dark:bg-zinc-800 py-3 rounded-xl font-bold">إلغاء</button>
             </div>
           </div>
