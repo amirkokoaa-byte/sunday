@@ -13,9 +13,8 @@ const STORAGE_KEY_RECORDS = 'attendance_records_v3';
 const STORAGE_KEY_USERS = 'attendance_users_v3';
 const STORAGE_KEY_THEME = 'attendance_theme_v3';
 
-// Updated admin credentials as per user request: admin / admin
 const DEFAULT_USERS: User[] = [
-  { id: '1', username: 'admin', password: 'admin', isAdmin: true }
+  { id: 'admin_root', username: 'admin', password: 'admin', isAdmin: true }
 ];
 
 const App: React.FC = () => {
@@ -25,35 +24,51 @@ const App: React.FC = () => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
   const [theme, setTheme] = useState<Theme>('light');
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialization
+  // Load Initial Data
   useEffect(() => {
-    const savedRecords = localStorage.getItem(STORAGE_KEY_RECORDS);
-    if (savedRecords) setRecords(JSON.parse(savedRecords));
+    try {
+      const savedRecords = localStorage.getItem(STORAGE_KEY_RECORDS);
+      if (savedRecords) setRecords(JSON.parse(savedRecords));
 
-    const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    } else {
+      const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
+      if (savedUsers) {
+        const parsedUsers = JSON.parse(savedUsers);
+        // نضمن دائماً وجود الأدمن حتى لو تم حذفه بالخطأ
+        const hasAdmin = parsedUsers.some((u: User) => u.username === 'admin');
+        setUsers(hasAdmin ? parsedUsers : [...DEFAULT_USERS, ...parsedUsers]);
+      } else {
+        setUsers(DEFAULT_USERS);
+      }
+
+      const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+      if (savedTheme) setTheme(savedTheme as Theme);
+    } catch (error) {
+      console.error("Error loading data from localStorage:", error);
       setUsers(DEFAULT_USERS);
     }
-
-    const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
-    if (savedTheme) setTheme(savedTheme as Theme);
+    setIsInitialized(true);
   }, []);
 
-  // Syncing
+  // Save Data on changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
-  }, [records]);
+    if (isInitialized) {
+      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
+    }
+  }, [records, isInitialized]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-  }, [users]);
+    if (isInitialized) {
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+    }
+  }, [users, isInitialized]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_THEME, theme);
-  }, [theme]);
+    if (isInitialized) {
+      localStorage.setItem(STORAGE_KEY_THEME, theme);
+    }
+  }, [theme, isInitialized]);
 
   const handleAddRecord = (type: RecordType) => {
     if (!user) return;
@@ -102,6 +117,8 @@ const App: React.FC = () => {
     setCurrentPage('attendance');
   };
 
+  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">جاري تحميل النظام...</div>;
+
   if (!user) {
     return <Login users={users} onLogin={setUser} />;
   }
@@ -109,7 +126,7 @@ const App: React.FC = () => {
   // Theme styles
   const themeClasses = {
     light: 'bg-gray-50 text-gray-900',
-    dark: 'bg-black text-white', // Dark: white text on black background
+    dark: 'bg-black text-white',
     glass: 'bg-gradient-to-br from-blue-600 to-indigo-900 text-white backdrop-blur-md',
     corporate: 'bg-slate-900 text-slate-100'
   }[theme];
@@ -121,7 +138,7 @@ const App: React.FC = () => {
     : 'bg-white border-gray-100 text-gray-900 shadow-sm';
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-500 ${themeClasses}`}>
+    <div className={`min-h-screen flex transition-colors duration-500 ${themeClasses} ${theme === 'dark' ? 'dark' : ''}`}>
       <Sidebar 
         currentPage={currentPage} 
         setCurrentPage={setCurrentPage} 
@@ -132,12 +149,8 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 lg:mr-64 p-4 md:p-8 overflow-y-auto">
-        {/* Universal Header */}
         <div className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-8 p-6 rounded-3xl ${cardClasses}`}>
-          {/* Top Left: Clock & Date */}
           <Clock />
-
-          {/* Top Right: Mobile Toggle & Title */}
           <div className="flex items-center gap-4 order-first md:order-last">
             <div className="text-right">
               <h1 className="text-xl md:text-2xl font-black">حضور يوم السبت</h1>
@@ -152,7 +165,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Content Area */}
         <div className="max-w-6xl mx-auto space-y-6">
           {currentPage === 'attendance' && (
             <AttendancePage 
