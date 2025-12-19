@@ -40,6 +40,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     adminVacations: false
   });
 
+  // Edit User Modal State
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editUserId, setEditUserId] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+
   // Branch Modal State
   const [tempBranchName, setTempBranchName] = useState('');
   const [tempBranchAddress, setTempBranchAddress] = useState('');
@@ -100,6 +106,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       setNewUsername('');
       setNewPassword('');
     }
+  };
+
+  const handleOpenEditModal = (user: User) => {
+    setEditUserId(user.id);
+    setEditUsername(user.username);
+    setEditPassword(user.password);
+    setShowEditUserModal(true);
+  };
+
+  const handleSaveUserEdit = () => {
+    if (!editUsername || !editPassword) {
+      alert('يرجى إدخال البيانات كاملة');
+      return;
+    }
+    onUpdateUser(editUserId, { username: editUsername, password: editPassword });
+    setShowEditUserModal(false);
+    alert('تم تعديل بيانات المستخدم بنجاح');
   };
 
   const handleSelectUserForLocation = (userId: string) => {
@@ -202,11 +225,95 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className={`${cardClasses} p-6 rounded-3xl`}>
         <h2 className="text-xl font-bold mb-4">إضافة مستخدم جديد</h2>
         <div className="flex flex-col md:flex-row gap-4">
-          <input className="flex-1 px-4 py-2 bg-black/5 rounded-xl" placeholder="اسم المستخدم" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
-          <input className="flex-1 px-4 py-2 bg-black/5 rounded-xl" type="password" placeholder="كلمة المرور" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          <button onClick={handleAddUser} className="bg-green-600 text-white px-6 py-2 rounded-xl">إضافة</button>
+          <input className="flex-1 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl border border-white/5 outline-none" placeholder="اسم المستخدم" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+          <input className="flex-1 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl border border-white/5 outline-none" type="password" placeholder="كلمة المرور" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <button onClick={handleAddUser} className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg active:scale-95 transition-all">إضافة</button>
         </div>
       </div>
+
+      {/* جدول المستخدمين مع أزرار التعديل والحذف */}
+      <div className={`${cardClasses} rounded-3xl overflow-hidden`}>
+        <div className="p-4 border-b border-white/10 font-bold">قائمة الحسابات المسجلة</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right">
+            <thead className="bg-white/5 text-xs font-bold uppercase">
+              <tr>
+                <th className="px-6 py-3">المستخدم</th>
+                <th className="px-6 py-3">كلمة المرور</th>
+                <th className="px-6 py-3">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 bg-blue-500/20 text-blue-500 flex items-center justify-center rounded-full text-xs">👤</span>
+                      {u.username} 
+                      {u.isAdmin && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1">ADMIN</span>}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 opacity-50 font-mono">****</td>
+                  <td className="px-6 py-4 flex gap-2">
+                    <button 
+                      onClick={() => handleOpenEditModal(u)}
+                      className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1"
+                    >
+                      <span>✏️</span> تعديل
+                    </button>
+                    {!u.isAdmin && (
+                      <button 
+                        onClick={() => onDeleteUser(u.id)}
+                        className="bg-red-500/10 text-red-500 hover:bg-red-500/20 px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1"
+                      >
+                        <span>🗑️</span> حذف
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* نافذة تعديل المستخدم المنبثقة */}
+      {showEditUserModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className={`${cardClasses} w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6`}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black">✏️ تعديل بيانات الحساب</h3>
+              <button onClick={() => setShowEditUserModal(false)} className="text-2xl opacity-50">✖</button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold opacity-60 mr-2">اسم المستخدم الجديد</label>
+                <input 
+                  className="w-full px-5 py-3 bg-black/5 dark:bg-white/10 border border-white/5 rounded-2xl outline-none"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold opacity-60 mr-2">كلمة المرور الجديدة</label>
+                <input 
+                  type="text"
+                  className="w-full px-5 py-3 bg-black/5 dark:bg-white/10 border border-white/5 rounded-2xl outline-none"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                />
+              </div>
+              <button 
+                onClick={handleSaveUserEdit}
+                className="w-full bg-blue-600 text-white py-4 rounded-3xl font-black text-lg shadow-2xl active:scale-95 transition-all mt-4"
+              >
+                حفظ التعديلات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPermModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
