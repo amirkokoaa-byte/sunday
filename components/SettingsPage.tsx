@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Theme, BranchLocation, UserLocationConfig } from '../types';
-import { db, ref, onValue, set } from '../utils/firebase';
+import { User, Theme, BranchLocation, UserLocationConfig, UserPermissions } from '../types';
+import { db, ref, onValue, set, update } from '../utils/firebase';
 import { parseCoordinates, resolveShortLink } from '../utils/locationUtils';
 
 interface SettingsPageProps {
@@ -27,6 +27,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [currentBranches, setCurrentBranches] = useState<BranchLocation[]>([]);
   
+  // Permissions State
+  const [showPermModal, setShowPermModal] = useState(false);
+  const [permUserId, setPermUserId] = useState('');
+  const [userPerms, setUserPerms] = useState<UserPermissions>({
+    attendance: true,
+    locationAttendance: true,
+    myLogs: true,
+    history: true,
+    settings: false,
+    vacationRequest: true,
+    adminVacations: false
+  });
+
   // Branch Modal State
   const [tempBranchName, setTempBranchName] = useState('');
   const [tempBranchAddress, setTempBranchAddress] = useState('');
@@ -50,9 +63,40 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     return () => unsubscribe();
   }, []);
 
+  const handleSelectUserPerm = (userId: string) => {
+    setPermUserId(userId);
+    const targetUser = users.find(u => u.id === userId);
+    if (targetUser && targetUser.permissions) {
+      setUserPerms(targetUser.permissions);
+    } else {
+      setUserPerms({
+        attendance: true,
+        locationAttendance: true,
+        myLogs: true,
+        history: true,
+        settings: false,
+        vacationRequest: true,
+        adminVacations: false
+      });
+    }
+  };
+
+  const handleTogglePerm = (key: keyof UserPermissions) => {
+    setUserPerms(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const savePermissions = () => {
+    if (!permUserId) return;
+    update(ref(db, `users/${permUserId}`), { permissions: userPerms })
+      .then(() => {
+        alert('تم تحديث الصلاحيات بنجاح');
+        setShowPermModal(false);
+      });
+  };
+
   const handleAddUser = () => {
     if (newUsername && newPassword) {
-      onAddUser({ username: newUsername, password: newPassword });
+      onAddUser({ username: newUsername, password: newPassword, isAdmin: false });
       setNewUsername('');
       setNewPassword('');
     }
@@ -64,39 +108,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     setCurrentBranches(config?.branches || []);
   };
 
-  const handleAddBranchField = () => {
-    if (currentBranches.length < 10) {
-      setShowBranchModal(true);
-    } else {
-      alert('الحد الأقصى هو 10 فروع لكل موظف');
-    }
-  };
-
   const saveBranch = async () => {
     if (!tempBranchName || !tempBranchLocation) {
       alert('يرجى إكمال البيانات');
       return;
     }
-
     let locationToParse = tempBranchLocation;
-    
-    // Check if it's a shortened Google Maps link
     if (tempBranchLocation.includes('maps.app.goo.gl') || tempBranchLocation.includes('goo.gl/maps')) {
       setIsResolving(true);
       const resolved = await resolveShortLink(tempBranchLocation);
-      if (resolved) {
-        locationToParse = resolved;
-      }
+      if (resolved) locationToParse = resolved;
       setIsResolving(false);
     }
-
     const coords = parseCoordinates(locationToParse);
-    
     if (!coords) {
-      alert('تعذر استخراج الإحداثيات من هذا الرابط. يرجى التأكد من الرابط أو إدخال الإحداثيات يدوياً (مثال: 30.123, 31.456)');
+      alert('تعذر استخراج الإحداثيات');
       return;
     }
-
     const newBranch: BranchLocation = {
       id: Math.random().toString(36).substr(2, 9),
       name: tempBranchName,
@@ -104,45 +132,40 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       latitude: coords.lat,
       longitude: coords.lng
     };
-
     const updated = [...currentBranches, newBranch];
     setCurrentBranches(updated);
-    setTempBranchName('');
-    setTempBranchAddress('');
-    setTempBranchLocation('');
+    setTempBranchName(''); setTempBranchAddress(''); setTempBranchLocation('');
     setShowBranchModal(false);
   };
 
   const saveAllUserLocations = () => {
     if (!selectedUserId) return;
-    const locRef = ref(db, `userLocations/${selectedUserId}`);
-    set(locRef, { branches: currentBranches })
-      .then(() => alert('تم حفظ مواقع الموظف بنجاح'))
-      .catch(() => alert('خطأ في الحفظ'));
+    set(ref(db, `userLocations/${selectedUserId}`), { branches: currentBranches })
+      .then(() => alert('تم حفظ المواقع بنجاح'));
   };
 
-  const themes: { id: Theme; label: string; class: string }[] = [
-    { id: 'light', label: 'فاتح', class: 'bg-white text-gray-900 border' },
-    { id: 'dark', label: 'داكن (أسود)', class: 'bg-zinc-950 text-white border border-zinc-800' },
-    { id: 'glass', label: 'زجاجي', class: 'bg-blue-500/30 text-white backdrop-blur border border-white/20' },
-    { id: 'corporate', label: 'احترافي', class: 'bg-slate-800 text-white border border-slate-700' },
-    { id: 'midnight', label: 'ليلي', class: 'bg-slate-900 text-slate-100 border border-slate-800 shadow-xl' },
-    { id: 'emerald', label: 'زمردي', class: 'bg-emerald-50 text-emerald-900 border border-emerald-100 shadow-md' },
-    { id: 'rose', label: 'زهري', class: 'bg-rose-50 text-rose-900 border border-rose-100 shadow-md' }
-  ];
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
+      <div className={`${cardClasses} p-6 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4`}>
+        <h2 className="text-xl font-bold">صلاحيات الحسابات</h2>
+        <button 
+          onClick={() => setShowPermModal(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-2xl font-bold shadow-xl transition-all active:scale-95"
+        >
+          ⚙️ إدارة صلاحيات المستخدمين
+        </button>
+      </div>
+
       <div className={`${cardClasses} p-6 rounded-3xl`}>
         <h2 className="text-xl font-bold mb-4">اعدادات المظهر</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {themes.map(t => (
+          {['light', 'dark', 'glass', 'corporate', 'midnight', 'emerald', 'rose'].map(t => (
             <button
-              key={t.id}
-              onClick={() => onThemeChange(t.id)}
-              className={`p-4 rounded-xl text-center font-bold transition-all ${t.class} ${currentTheme === t.id ? 'ring-4 ring-blue-500 scale-105' : 'hover:scale-102'}`}
+              key={t}
+              onClick={() => onThemeChange(t as Theme)}
+              className={`p-4 rounded-xl text-center font-bold border ${currentTheme === t ? 'ring-4 ring-blue-500 scale-105' : 'hover:scale-102 opacity-60'}`}
             >
-              {t.label}
+              {t}
             </button>
           ))}
         </div>
@@ -151,180 +174,112 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className={`${cardClasses} p-6 rounded-3xl`}>
         <h2 className="text-xl font-bold mb-4">إعدادات المواقع الجغرافية (لوكيشن)</h2>
         <div className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 w-full">
-              <label className="block text-sm mb-1 opacity-60">اختر الموظف</label>
-              <select 
-                className="w-full px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none"
-                value={selectedUserId}
-                onChange={(e) => handleSelectUserForLocation(e.target.value)}
-              >
-                <option value="">-- اختر موظف --</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
-              </select>
-            </div>
-            {selectedUserId && (
-              <button 
-                onClick={handleAddBranchField}
-                className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2"
-              >
-                <span>➕</span> إضافة لوكيشن فرع
-              </button>
-            )}
-          </div>
-
+          <select 
+            className="w-full px-4 py-3 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none"
+            value={selectedUserId}
+            onChange={(e) => handleSelectUserForLocation(e.target.value)}
+          >
+            <option value="">-- اختر موظف لضبط فروعه --</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
+          </select>
           {selectedUserId && (
-            <div className="border border-white/10 rounded-2xl p-4 mt-4">
-              <h3 className="font-bold mb-3 flex items-center gap-2">
-                <span>📍</span> الفروع المسجلة لـ {users.find(u => u.id === selectedUserId)?.username}
-              </h3>
-              <div className="space-y-2">
-                {currentBranches.length === 0 ? (
-                  <p className="opacity-40 text-sm italic">لم يتم إضافة فروع بعد</p>
-                ) : (
-                  currentBranches.map((b, idx) => (
-                    <div key={b.id} className="flex items-center justify-between p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-white/5">
-                      <div>
-                        <div className="font-bold">{b.name}</div>
-                        <div className="text-xs opacity-60">{b.address} | {b.latitude.toFixed(6)}, {b.longitude.toFixed(6)}</div>
-                      </div>
-                      <button 
-                        onClick={() => setCurrentBranches(prev => prev.filter((_, i) => i !== idx))}
-                        className="text-red-500 p-2 hover:bg-red-500/10 rounded-lg"
-                      >🗑️</button>
-                    </div>
-                  ))
-                )}
-              </div>
-              <button 
-                onClick={saveAllUserLocations}
-                className="w-full mt-4 bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg"
-              >حفظ جميع المواقع</button>
+            <div className="space-y-4">
+               <button onClick={() => setShowBranchModal(true)} className="bg-blue-600 text-white px-6 py-2 rounded-xl text-sm">➕ إضافة فرع</button>
+               <div className="space-y-2">
+                 {currentBranches.map((b, i) => (
+                   <div key={b.id} className="flex justify-between items-center p-3 bg-white/5 rounded-xl text-sm">
+                     <span>{b.name}</span>
+                     <button onClick={() => setCurrentBranches(prev => prev.filter((_, idx) => idx !== i))} className="text-red-500">🗑️</button>
+                   </div>
+                 ))}
+               </div>
+               <button onClick={saveAllUserLocations} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">حفظ الفروع</button>
             </div>
           )}
         </div>
       </div>
 
-      {showBranchModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className={`${cardClasses} w-full max-w-md p-6 rounded-3xl shadow-2xl space-y-4`}>
-            <h3 className="text-xl font-bold">إضافة فرع جديد</h3>
-            <div>
-              <label className="block text-sm mb-1 opacity-60">اسم الفرع</label>
-              <input 
-                className="w-full px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none"
-                placeholder="مثال: فرع القاهرة"
-                value={tempBranchName}
-                onChange={(e) => setTempBranchName(e.target.value)}
-              />
+      <div className={`${cardClasses} p-6 rounded-3xl`}>
+        <h2 className="text-xl font-bold mb-4">إضافة مستخدم جديد</h2>
+        <div className="flex flex-col md:flex-row gap-4">
+          <input className="flex-1 px-4 py-2 bg-black/5 rounded-xl" placeholder="اسم المستخدم" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+          <input className="flex-1 px-4 py-2 bg-black/5 rounded-xl" type="password" placeholder="كلمة المرور" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <button onClick={handleAddUser} className="bg-green-600 text-white px-6 py-2 rounded-xl">إضافة</button>
+        </div>
+      </div>
+
+      {showPermModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className={`${cardClasses} w-full max-w-lg p-8 rounded-[40px] shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto`}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black">⚙️ صلاحيات الحسابات</h3>
+              <button onClick={() => setShowPermModal(false)} className="text-2xl opacity-50">✖</button>
             </div>
-            <div>
-              <label className="block text-sm mb-1 opacity-60">عنوان الفرع (اختياري)</label>
-              <input 
-                className="w-full px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none"
-                placeholder="العنوان التفصيلي"
-                value={tempBranchAddress}
-                onChange={(e) => setTempBranchAddress(e.target.value)}
-              />
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold opacity-60">اختر الحساب المراد تعديله</label>
+              <select 
+                className="w-full px-5 py-3 bg-black/5 dark:bg-white/5 border border-white/10 rounded-2xl outline-none"
+                value={permUserId}
+                onChange={(e) => handleSelectUserPerm(e.target.value)}
+              >
+                <option value="">-- اختر المستخدم --</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
+              </select>
             </div>
-            <div>
-              <label className="block text-sm mb-1 opacity-60">رابط لوكيشن جوجل أو إحداثيات</label>
-              <input 
-                className="w-full px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none"
-                placeholder="الصق الرابط هنا (يقبل الروابط المختصرة)"
-                value={tempBranchLocation}
-                onChange={(e) => setTempBranchLocation(e.target.value)}
-              />
-            </div>
-            
-            {isResolving && (
-              <div className="flex items-center gap-2 text-blue-500 text-sm font-bold animate-pulse justify-center py-2">
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
-                جاري استخراج الموقع من الرابط...
+
+            {permUserId && (
+              <div className="space-y-3">
+                <p className="font-bold text-center border-b border-white/10 pb-2">تفعيل القوائم لهذا الحساب:</p>
+                {[
+                  { key: 'attendance', label: 'حضور وانصراف', icon: '📝' },
+                  { key: 'locationAttendance', label: 'حضور لوكيشن', icon: '📍' },
+                  { key: 'myLogs', label: 'إجازاتي ومأمورياتي', icon: '🏖️' },
+                  { key: 'history', label: 'الحضور السابق', icon: '📅' },
+                  { key: 'vacationRequest', label: 'طلب إجازة', icon: '📩' },
+                  { key: 'adminVacations', label: 'طلبات الإجازة المرسلة (إدارة)', icon: '📋' },
+                  { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
+                ].map(item => (
+                  <div key={item.key} className="flex items-center justify-between p-3 bg-black/5 dark:bg-white/10 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{item.icon}</span>
+                      <span className="font-bold text-sm">{item.label}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleTogglePerm(item.key as keyof UserPermissions)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${userPerms[item.key as keyof UserPermissions] ? 'bg-green-600 text-white shadow-lg shadow-green-600/20' : 'bg-gray-200 text-gray-400 opacity-30 hover:opacity-60'}`}
+                      >تفعيل</button>
+                      <button 
+                         onClick={() => handleTogglePerm(item.key as keyof UserPermissions)}
+                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${!userPerms[item.key as keyof UserPermissions] ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-gray-200 text-gray-400 opacity-30 hover:opacity-60'}`}
+                      >عدم تفعيل</button>
+                    </div>
+                  </div>
+                ))}
+                <button 
+                  onClick={savePermissions}
+                  className="w-full bg-blue-600 text-white py-4 rounded-3xl font-black text-lg shadow-2xl active:scale-95 transition-all mt-4"
+                >حفظ الصلاحيات</button>
               </div>
             )}
-
-            <div className="flex gap-2 pt-4">
-              <button 
-                onClick={saveBranch} 
-                disabled={isResolving}
-                className={`flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold ${isResolving ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isResolving ? 'انتظر...' : 'إضافة'}
-              </button>
-              <button onClick={() => setShowBranchModal(false)} className="flex-1 bg-gray-200 dark:bg-zinc-800 py-3 rounded-xl font-bold">إلغاء</button>
-            </div>
           </div>
         </div>
       )}
 
-      <div className={`${cardClasses} p-6 rounded-3xl`}>
-        <h2 className="text-xl font-bold mb-4">إضافة مستخدم جديد</h2>
-        <div className="flex flex-col md:flex-row gap-4">
-          <input
-            className="flex-1 px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="اسم المستخدم"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
-          />
-          <input
-            className="flex-1 px-4 py-2 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            type="password"
-            placeholder="كلمة المرور"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-          <button
-            onClick={handleAddUser}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-lg active:scale-95"
-          >
-            إضافة مستخدم
-          </button>
+      {showBranchModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+           <div className={`${cardClasses} w-full max-w-md p-8 rounded-[40px] space-y-4`}>
+             <h3 className="text-xl font-black">إضافة فرع</h3>
+             <input className="w-full p-3 bg-black/5 rounded-2xl" placeholder="اسم الفرع" value={tempBranchName} onChange={(e) => setTempBranchName(e.target.value)} />
+             <input className="w-full p-3 bg-black/5 rounded-2xl" placeholder="رابط جوجل ماب" value={tempBranchLocation} onChange={(e) => setTempBranchLocation(e.target.value)} />
+             <div className="flex gap-2">
+                <button onClick={saveBranch} className="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-bold">إضافة</button>
+                <button onClick={() => setShowBranchModal(false)} className="flex-1 bg-gray-500 text-white py-3 rounded-2xl font-bold">إلغاء</button>
+             </div>
+           </div>
         </div>
-      </div>
-
-      <div className={`${cardClasses} rounded-3xl overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-right">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-6 py-3 font-bold">المستخدم</th>
-                <th className="px-6 py-3 font-bold">كلمة المرور</th>
-                <th className="px-6 py-3 font-bold">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {users.map(u => (
-                <tr key={u.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 bg-blue-500/20 text-blue-500 flex items-center justify-center rounded-full text-xs">👤</span>
-                      {u.username} 
-                      {u.isAdmin && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded">ADMIN</span>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 opacity-50 font-mono">****</td>
-                  <td className="px-6 py-4 space-x-2 space-x-reverse">
-                    <button 
-                      onClick={() => {
-                        const pass = prompt('ادخل كلمة المرور الجديدة:');
-                        if(pass) onUpdateUser(u.id, { password: pass });
-                      }}
-                      className="text-blue-500 hover:bg-blue-500/10 px-3 py-1 rounded-lg font-bold text-sm transition-all"
-                    >تغيير الباسورد</button>
-                    {!u.isAdmin && (
-                      <button 
-                        onClick={() => onDeleteUser(u.id)}
-                        className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded-lg font-bold text-sm transition-all"
-                      >حذف</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

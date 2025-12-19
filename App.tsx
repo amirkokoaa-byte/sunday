@@ -6,6 +6,8 @@ import HistoryPage from './components/HistoryPage';
 import SettingsPage from './components/SettingsPage';
 import MyLogsPage from './components/MyLogsPage';
 import LocationAttendancePage from './components/LocationAttendancePage';
+import VacationRequestPage from './components/VacationRequestPage';
+import AdminVacationRequestsPage from './components/AdminVacationRequestsPage';
 import Login from './components/Login';
 import Clock from './components/Clock';
 import { AttendanceRecord, RecordType, Page, User, Theme } from './types';
@@ -39,12 +41,18 @@ const App: React.FC = () => {
         }));
         const hasAdmin = usersList.some(u => u.username === 'admin');
         setUsers(hasAdmin ? usersList : [...DEFAULT_USERS, ...usersList]);
+        
+        // Update local user if modified in DB (e.g. permissions changed)
+        if (user) {
+          const updatedUser = usersList.find(u => u.id === user.id);
+          if (updatedUser) setUser(updatedUser);
+        }
       } else {
         setUsers(DEFAULT_USERS);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const recordsRef = ref(db, 'records');
@@ -119,7 +127,7 @@ const App: React.FC = () => {
     setCurrentPage('attendance');
   };
 
-  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">جاري الاتصال...</div>;
+  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold italic animate-pulse">جاري الاتصال بالنظام...</div>;
 
   if (!user) return <Login users={users} onLogin={setUser} />;
 
@@ -169,10 +177,10 @@ const App: React.FC = () => {
             <div className="relative">
               <button 
                 onClick={() => setShowThemeMenu(!showThemeMenu)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2"
               >
                 <span>🎨 الاستايل</span>
-                <span className="text-xs">▼</span>
+                <span className="text-[10px]">▼</span>
               </button>
               
               {showThemeMenu && (
@@ -224,6 +232,19 @@ const App: React.FC = () => {
               theme={theme}
             />
           )}
+          {currentPage === 'vacation-request' && (
+            <VacationRequestPage 
+              user={user}
+              cardClasses={cardClasses[theme]}
+              theme={theme}
+            />
+          )}
+          {currentPage === 'admin-vacations' && (
+            <AdminVacationRequestsPage 
+              cardClasses={cardClasses[theme]}
+              theme={theme}
+            />
+          )}
           {currentPage === 'my-logs' && (
             <MyLogsPage
               records={records}
@@ -259,8 +280,8 @@ const App: React.FC = () => {
             />
           )}
         </div>
-        <footer className="text-center py-8 opacity-50 text-sm border-t border-white/10 mt-10">
-          مع تحيات المطور Amir Lamay
+        <footer className="text-center py-8 opacity-50 text-[10px] border-t border-white/10 mt-10">
+          تم تطويره بواسطة Amir Lamay لعام 2024
         </footer>
       </main>
     </div>

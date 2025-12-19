@@ -7,6 +7,12 @@ export enum RecordType {
   LOC_DEPARTURE = 'انصراف موقع'
 }
 
+export enum VacationStatus {
+  PENDING = 'قيد الانتظار',
+  APPROVED = 'تم القبول',
+  REJECTED = 'مرفوض'
+}
+
 export interface BranchLocation {
   id: string;
   name: string;
@@ -32,13 +38,43 @@ export interface AttendanceRecord {
   accuracy?: number;
 }
 
+export interface VacationRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  startDate: string;
+  endDate: string;
+  returnDate: string;
+  daysCount: number;
+  status: VacationStatus;
+  createdAt: string;
+}
+
+export interface UserPermissions {
+  attendance: boolean;
+  locationAttendance: boolean;
+  myLogs: boolean;
+  history: boolean;
+  settings: boolean;
+  vacationRequest: boolean;
+  adminVacations: boolean;
+}
+
 export interface User {
   id: string;
   username: string;
   password: string;
   isAdmin: boolean;
+  permissions?: UserPermissions;
 }
 
 export type Theme = 'light' | 'dark' | 'glass' | 'corporate' | 'midnight' | 'emerald' | 'rose';
 
-export type Page = 'attendance' | 'history' | 'settings' | 'my-logs' | 'location-attendance';
+export type Page = 
+  | 'attendance' 
+  | 'history' 
+  | 'settings' 
+  | 'my-logs' 
+  | 'location-attendance' 
+  | 'vacation-request' 
+  | 'admin-vacations';
