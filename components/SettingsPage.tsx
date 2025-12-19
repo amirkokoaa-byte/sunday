@@ -13,13 +13,15 @@ interface SettingsPageProps {
   onThemeChange: (theme: Theme) => void;
   cardClasses: string;
   theme: string;
+  appName: string;
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ 
-  users, onAddUser, onUpdateUser, onDeleteUser, currentTheme, onThemeChange, cardClasses, theme 
+  users, onAddUser, onUpdateUser, onDeleteUser, currentTheme, onThemeChange, cardClasses, theme, appName 
 }) => {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [tempAppName, setTempAppName] = useState(appName);
   
   // Location Management State
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -125,6 +127,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     alert('تم تعديل بيانات المستخدم بنجاح');
   };
 
+  const handleSaveAppName = () => {
+    if (!tempAppName.trim()) {
+      alert('اسم البرنامج لا يمكن أن يكون فارغاً');
+      return;
+    }
+    set(ref(db, 'appConfig/name'), tempAppName.trim())
+      .then(() => alert('تم تحديث اسم البرنامج بنجاح'));
+  };
+
   const handleSelectUserForLocation = (userId: string) => {
     setSelectedUserId(userId);
     const config = userLocations.find(l => l.userId === userId);
@@ -169,6 +180,29 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
   return (
     <div className="space-y-6 pb-10">
+      <div className={`${cardClasses} p-6 rounded-3xl`}>
+        <h2 className="text-xl font-bold mb-4">⚙️ إعدادات عامة للنظام</h2>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 space-y-1">
+            <label className="text-xs font-bold opacity-60 mr-2">اسم البرنامج المعروض</label>
+            <input 
+              className="w-full px-4 py-2.5 bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl outline-none" 
+              placeholder="مثلاً: نظام حضور شركة كذا" 
+              value={tempAppName} 
+              onChange={(e) => setTempAppName(e.target.value)} 
+            />
+          </div>
+          <div className="flex items-end">
+            <button 
+              onClick={handleSaveAppName} 
+              className="bg-blue-600 text-white px-8 py-2.5 rounded-xl font-bold shadow-lg active:scale-95 transition-all"
+            >
+              حفظ الاسم
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className={`${cardClasses} p-6 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4`}>
         <h2 className="text-xl font-bold">صلاحيات الحسابات</h2>
         <button 
@@ -231,7 +265,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* جدول المستخدمين مع أزرار التعديل والحذف */}
       <div className={`${cardClasses} rounded-3xl overflow-hidden`}>
         <div className="p-4 border-b border-white/10 font-bold">قائمة الحسابات المسجلة</div>
         <div className="overflow-x-auto">
@@ -277,7 +310,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* نافذة تعديل المستخدم المنبثقة */}
       {showEditUserModal && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className={`${cardClasses} w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6`}>

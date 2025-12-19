@@ -9,9 +9,10 @@ interface SidebarProps {
   setIsOpen: (isOpen: boolean) => void;
   user: User;
   onLogout: () => void;
+  appName: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, setIsOpen, user, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, setIsOpen, user, onLogout, appName }) => {
   // القائمة الأساسية
   const allItems = [
     { id: 'attendance' as Page, label: 'حضور وانصراف', icon: '📝', key: 'attendance' },
@@ -46,7 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <span className="bg-blue-500 p-2 rounded-lg text-sm">🏬</span>
-            حضور يوم السبت
+            {appName}
           </h1>
           <button className="lg:hidden text-white p-2" onClick={() => setIsOpen(false)}>✖</button>
         </div>
@@ -80,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
             تسجيل الخروج
           </button>
           <div className="p-4 text-[10px] text-slate-500 text-center">
-            نظام الحضور والاجازات © 2024
+            {appName} © 2024
           </div>
         </div>
       </aside>

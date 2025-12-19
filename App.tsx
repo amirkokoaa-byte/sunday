@@ -29,10 +29,18 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
   const [isInitialized, setIsInitialized] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [appName, setAppName] = useState('حضور يوم السبت');
 
   useEffect(() => {
+    // جلب اسم البرنامج من الإعدادات
+    const configRef = ref(db, 'appConfig/name');
+    const unsubscribeConfig = onValue(configRef, (snapshot) => {
+      const name = snapshot.val();
+      if (name) setAppName(name);
+    });
+
     const usersRef = ref(db, 'users');
-    const unsubscribe = onValue(usersRef, (snapshot) => {
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const usersList: User[] = Object.keys(data).map(key => ({
@@ -42,7 +50,6 @@ const App: React.FC = () => {
         const hasAdmin = usersList.some(u => u.username === 'admin');
         setUsers(hasAdmin ? usersList : [...DEFAULT_USERS, ...usersList]);
         
-        // Update local user if modified in DB (e.g. permissions changed)
         if (user) {
           const updatedUser = usersList.find(u => u.id === user.id);
           if (updatedUser) setUser(updatedUser);
@@ -51,7 +58,11 @@ const App: React.FC = () => {
         setUsers(DEFAULT_USERS);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeConfig();
+      unsubscribeUsers();
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -129,7 +140,7 @@ const App: React.FC = () => {
 
   if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold italic animate-pulse">جاري الاتصال بالنظام...</div>;
 
-  if (!user) return <Login users={users} onLogin={setUser} />;
+  if (!user) return <Login users={users} onLogin={setUser} appName={appName} />;
 
   const themeClasses: Record<Theme, string> = {
     light: 'bg-gray-50 text-gray-900',
@@ -167,6 +178,7 @@ const App: React.FC = () => {
         currentPage={currentPage} setCurrentPage={setCurrentPage} 
         isOpen={sidebarOpen} setIsOpen={setSidebarOpen}
         user={user} onLogout={handleLogout}
+        appName={appName}
       />
 
       <main className="flex-1 lg:mr-64 p-4 md:p-8">
@@ -205,7 +217,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="text-right">
-              <h1 className="text-xl font-black">حضور يوم السبت</h1>
+              <h1 className="text-xl font-black">{appName}</h1>
               <p className="text-xs opacity-60">أهلاً، {user.username}</p>
             </div>
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-2xl">☰</button>
@@ -277,6 +289,7 @@ const App: React.FC = () => {
               onThemeChange={setTheme}
               cardClasses={cardClasses[theme]}
               theme={theme}
+              appName={appName}
             />
           )}
         </div>

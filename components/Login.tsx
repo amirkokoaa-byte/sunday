@@ -5,9 +5,10 @@ import { User } from '../types';
 interface LoginProps {
   onLogin: (user: User) => void;
   users: User[];
+  appName: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, users, appName }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           <div className="inline-block p-4 bg-blue-100 rounded-full mb-4">
             <span className="text-4xl">🏢</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">حضور يوم السبت</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{appName}</h1>
           <p className="text-gray-500">سجل الدخول للمتابعة</p>
         </div>
 
