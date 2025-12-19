@@ -12,15 +12,20 @@ interface AttendancePageProps {
 }
 
 const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, currentUserName, cardClasses, theme }) => {
-  const todayRecords = records.filter(r => isToday(r.date));
-  const periodLabel = getPeriodLabel(new Date());
-
-  const hasSignedToday = todayRecords.some(r => r.userName === currentUserName && r.type === RecordType.ATTENDANCE);
-  const hasVacationToday = todayRecords.some(r => r.userName === currentUserName && r.type === RecordType.VACATION);
-  const hasMissionToday = todayRecords.some(r => r.userName === currentUserName && r.type === RecordType.MISSION);
+  // نحصل على كافة سجلات اليوم للتحقق من حالة المستخدم الحالي
+  const todayRecordsAll = records.filter(r => isToday(r.date));
+  
+  // منطق التحقق للمستخدم الحالي (لمنع تكرار الإمضاء أو الإمضاء أثناء الإجازة)
+  const hasSignedToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.ATTENDANCE);
+  const hasVacationToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.VACATION);
+  const hasMissionToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.MISSION);
 
   const isActionDisabled = hasSignedToday || hasVacationToday || hasMissionToday;
 
+  // الجدول العام يعرض فقط "الحضور" ولا يعرض الإجازات أو المأموريات لأي شخص بناءً على الطلب
+  const todayAttendanceOnly = todayRecordsAll.filter(r => r.type === RecordType.ATTENDANCE);
+
+  const periodLabel = getPeriodLabel(new Date());
   const tableHeaderClasses = theme === 'dark' ? 'bg-zinc-900 text-zinc-400' : 'bg-gray-50 text-gray-500';
 
   return (
@@ -30,6 +35,8 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, c
           <div>
             <h2 className="text-2xl font-bold">إمضاء حضور وانصراف</h2>
             <p className="opacity-60 mt-1">{periodLabel}</p>
+            {hasVacationToday && <p className="text-orange-500 text-sm font-bold mt-1">⚠️ أنت مسجل في إجازة اليوم</p>}
+            {hasMissionToday && <p className="text-purple-500 text-sm font-bold mt-1">⚠️ أنت مسجل في مأمورية اليوم</p>}
           </div>
           <div className="flex flex-wrap gap-2">
              <button
@@ -85,26 +92,20 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, c
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {todayRecords.length === 0 ? (
+              {todayAttendanceOnly.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center opacity-40 italic">
                     لم يتم تسجيل أي حضور حتى الآن
                   </td>
                 </tr>
               ) : (
-                todayRecords.map((record) => (
+                todayAttendanceOnly.map((record) => (
                   <tr key={record.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-medium">{record.userName}</td>
                     <td className="px-6 py-4 opacity-70">{record.dayName}</td>
                     <td className="px-6 py-4 opacity-70">{formatDate(new Date(record.date))}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        record.type === RecordType.ATTENDANCE 
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                        : record.type === RecordType.MISSION
-                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                      }`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400`}>
                         {record.type}
                       </span>
                     </td>
