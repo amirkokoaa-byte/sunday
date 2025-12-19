@@ -21,6 +21,6 @@ export interface User {
   isAdmin: boolean;
 }
 
-export type Theme = 'light' | 'dark' | 'glass' | 'corporate';
+export type Theme = 'light' | 'dark' | 'glass' | 'corporate' | 'midnight' | 'emerald' | 'rose';
 
 export type Page = 'attendance' | 'history' | 'settings' | 'my-logs';

@@ -31,7 +31,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     { id: 'light', label: 'فاتح', class: 'bg-white text-gray-900 border' },
     { id: 'dark', label: 'داكن (أسود)', class: 'bg-zinc-950 text-white border border-zinc-800' },
     { id: 'glass', label: 'زجاجي', class: 'bg-blue-500/30 text-white backdrop-blur border border-white/20' },
-    { id: 'corporate', label: 'احترافي', class: 'bg-slate-800 text-white border border-slate-700' }
+    { id: 'corporate', label: 'احترافي', class: 'bg-slate-800 text-white border border-slate-700' },
+    { id: 'midnight', label: 'ليلي', class: 'bg-slate-900 text-slate-100 border border-slate-800 shadow-xl' },
+    { id: 'emerald', label: 'زمردي', class: 'bg-emerald-50 text-emerald-900 border border-emerald-100 shadow-md' },
+    { id: 'rose', label: 'زهري', class: 'bg-rose-50 text-rose-900 border border-rose-100 shadow-md' }
   ];
 
   return (
