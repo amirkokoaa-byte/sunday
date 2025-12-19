@@ -14,18 +14,17 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, setIsOpen, user, onLogout }) => {
   const menuItems = [
     { id: 'attendance' as Page, label: 'حضور وانصراف', icon: '📝' },
+    { id: 'location-attendance' as Page, label: 'حضور لوكيشن', icon: '📍' },
     { id: 'my-logs' as Page, label: 'إجازاتي ومأمورياتي', icon: '🏖️' },
     { id: 'history' as Page, label: 'الحضور السابق', icon: '📅' },
   ];
 
-  // Only add Settings if user is Admin
   if (user.isAdmin) {
     menuItems.push({ id: 'settings' as Page, label: 'الإعدادات', icon: '⚙️' });
   }
 
   return (
     <>
-      {/* Mobile Backdrop */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -39,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
             <span className="bg-blue-500 p-2 rounded-lg text-sm">🏬</span>
             حضور يوم السبت
           </h1>
-          {/* Toggle bars/X on the right for RTL flow */}
           <button className="lg:hidden text-white p-2" onClick={() => setIsOpen(false)}>✖</button>
         </div>
 

@@ -2,7 +2,22 @@
 export enum RecordType {
   ATTENDANCE = 'حضور',
   VACATION = 'إجازة سنوية',
-  MISSION = 'مأمورية'
+  MISSION = 'مأمورية',
+  LOC_ATTENDANCE = 'حضور موقع',
+  LOC_DEPARTURE = 'انصراف موقع'
+}
+
+export interface BranchLocation {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface UserLocationConfig {
+  userId: string;
+  branches: BranchLocation[];
 }
 
 export interface AttendanceRecord {
@@ -11,7 +26,10 @@ export interface AttendanceRecord {
   date: string; // ISO string
   dayName: string;
   type: RecordType;
-  isPrivate?: boolean; // حقل جديد لتحديد خصوصية السجل
+  isPrivate?: boolean;
+  locationLink?: string;
+  branchName?: string;
+  accuracy?: number;
 }
 
 export interface User {
@@ -23,4 +41,4 @@ export interface User {
 
 export type Theme = 'light' | 'dark' | 'glass' | 'corporate' | 'midnight' | 'emerald' | 'rose';
 
-export type Page = 'attendance' | 'history' | 'settings' | 'my-logs';
+export type Page = 'attendance' | 'history' | 'settings' | 'my-logs' | 'location-attendance';

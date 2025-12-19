@@ -24,6 +24,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
       .filter(record => record.isPrivate === false || record.isPrivate === undefined)
       .filter(record => 
         record.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (record.branchName && record.branchName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         formatDate(new Date(record.date)).includes(searchTerm)
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -71,14 +72,13 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
         </div>
         <div className="relative">
           <input
-            type="text" placeholder="البحث عن موظف أو تاريخ..." value={searchTerm}
+            type="text" placeholder="البحث عن موظف أو تاريخ أو فرع..." value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
-      {/* Explicitly cast Object.entries results to handle unknown type issues in TypeScript when iterating over groupedRecords */}
       {(Object.entries(groupedRecords) as [string, AttendanceRecord[]][]).map(([period, periodRecords]) => (
         <div key={period} className={`${cardClasses} rounded-3xl overflow-hidden`}>
           <div className="bg-white/5 p-4 border-b border-white/10 flex justify-between items-center">
@@ -92,6 +92,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
                   <th className="px-6 py-3">الموظف</th>
                   <th className="px-6 py-3">التاريخ</th>
                   <th className="px-6 py-3">الحالة</th>
+                  <th className="px-6 py-3">الفرع / الموقع</th>
                   <th className="px-6 py-3">الإجراءات</th>
                 </tr>
               </thead>
@@ -101,7 +102,24 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
                     <td className="px-6 py-4 font-medium">{record.userName}</td>
                     <td className="px-6 py-4 opacity-70 text-sm">{formatDate(new Date(record.date))}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-[10px] font-bold ${record.type === RecordType.ATTENDANCE ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>{record.type}</span>
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                        record.type === RecordType.ATTENDANCE || record.type === RecordType.LOC_ATTENDANCE 
+                        ? 'bg-green-500/10 text-green-500' 
+                        : 'bg-blue-500/10 text-blue-500'
+                      }`}>
+                        {record.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs">
+                      {record.branchName && (
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold">{record.branchName}</span>
+                          {record.locationLink && (
+                            <a href={record.locationLink} target="_blank" rel="noreferrer" className="text-blue-500 underline">خرائط جوجل 📍</a>
+                          )}
+                        </div>
+                      )}
+                      {!record.branchName && <span className="opacity-30">--</span>}
                     </td>
                     <td className="px-6 py-4">
                       {user.isAdmin && (

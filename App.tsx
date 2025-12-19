@@ -5,6 +5,7 @@ import AttendancePage from './components/AttendancePage';
 import HistoryPage from './components/HistoryPage';
 import SettingsPage from './components/SettingsPage';
 import MyLogsPage from './components/MyLogsPage';
+import LocationAttendancePage from './components/LocationAttendancePage';
 import Login from './components/Login';
 import Clock from './components/Clock';
 import { AttendanceRecord, RecordType, Page, User, Theme } from './types';
@@ -72,7 +73,15 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY_THEME, theme);
   }, [theme]);
 
-  const handleAddRecord = (type: RecordType, dateOverride?: Date, isPrivate: boolean = false, customName?: string) => {
+  const handleAddRecord = (
+    type: RecordType, 
+    dateOverride?: Date, 
+    isPrivate: boolean = false, 
+    customName?: string,
+    branchName?: string,
+    locationLink?: string,
+    accuracy?: number
+  ) => {
     if (!user) return;
     const now = dateOverride || new Date();
     const recordsRef = ref(db, 'records');
@@ -82,7 +91,10 @@ const App: React.FC = () => {
       date: now.toISOString(),
       dayName: getDayName(now),
       type,
-      isPrivate
+      isPrivate,
+      branchName: branchName || null,
+      locationLink: locationLink || null,
+      accuracy: accuracy || null
     };
 
     push(recordsRef, newRecord)
@@ -200,6 +212,14 @@ const App: React.FC = () => {
               onUpdateRecord={handleUpdateRecord}
               onDeleteRecord={handleDeleteRecord}
               user={user}
+              cardClasses={cardClasses[theme]}
+              theme={theme}
+            />
+          )}
+          {currentPage === 'location-attendance' && (
+            <LocationAttendancePage 
+              user={user}
+              onAddRecord={(type, branchName, locLink, acc) => handleAddRecord(type, undefined, false, undefined, branchName, locLink, acc)}
               cardClasses={cardClasses[theme]}
               theme={theme}
             />
