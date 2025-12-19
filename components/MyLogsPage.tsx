@@ -18,13 +18,12 @@ const MyLogsPage: React.FC<MyLogsPageProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter only records of the current user and only Vacation/Mission types
-  // Sorted by date descending (newest first)
+  // يعرض فقط سجلات المستخدم الحالي التي تم تعليمها كخاصة (isPrivate = true)
   const myRecords = useMemo(() => {
     return records
       .filter(r => 
         r.userName === currentUserName && 
-        (r.type === RecordType.VACATION || r.type === RecordType.MISSION) &&
+        r.isPrivate === true && // تصفية السجلات الخاصة فقط
         formatDate(new Date(r.date)).includes(searchTerm)
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -38,7 +37,6 @@ const MyLogsPage: React.FC<MyLogsPageProps> = ({
     
     let targetDate = new Date();
     if (dateInput.trim() !== '') {
-      // Basic parsing for dd/mm/yyyy
       const parts = dateInput.split('/');
       if (parts.length === 3) {
         targetDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
@@ -55,21 +53,21 @@ const MyLogsPage: React.FC<MyLogsPageProps> = ({
       <div className={`${cardClasses} p-6 rounded-3xl`}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold">إجازاتي ومأمورياتي</h2>
-            <p className="opacity-60">إدارة طلبات الإجازة والمأموريات الخاصة بك</p>
+            <h2 className="text-2xl font-bold">إجازاتي ومأمورياتي الخاصة</h2>
+            <p className="opacity-60">السجلات المضافة هنا تظهر لك وحدك ولا تظهر في السجل العام</p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => handleManualAdd(RecordType.VACATION)}
               className="bg-orange-500 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-orange-600 transition-all shadow-lg active:scale-95"
             >
-              🏖️ إضافة إجازة
+              🏖️ إضافة إجازة خاصة
             </button>
             <button
               onClick={() => handleManualAdd(RecordType.MISSION)}
               className="bg-purple-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg active:scale-95"
             >
-              🚗 إضافة مأمورية
+              🚗 إضافة مأمورية خاصة
             </button>
           </div>
         </div>
@@ -77,7 +75,7 @@ const MyLogsPage: React.FC<MyLogsPageProps> = ({
         <div className="mt-6 relative">
           <input
             type="text"
-            placeholder="البحث عن تاريخ معين (مثال: ٢٠/١٠/٢٠٢٤)..."
+            placeholder="البحث في إجازاتي الخاصة..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl px-5 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-right"
@@ -101,7 +99,7 @@ const MyLogsPage: React.FC<MyLogsPageProps> = ({
               {myRecords.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center opacity-40 italic">
-                    لا توجد إجازات أو مأموريات مسجلة
+                    لا توجد إجازات خاصة مسجلة (السجلات المضافة من صفحة الحضور تظهر في السجل العام فقط)
                   </td>
                 </tr>
               ) : (

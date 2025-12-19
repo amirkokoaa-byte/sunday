@@ -15,15 +15,15 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, c
   // نحصل على كافة سجلات اليوم للتحقق من حالة المستخدم الحالي
   const todayRecordsAll = records.filter(r => isToday(r.date));
   
-  // منطق التحقق للمستخدم الحالي (لمنع تكرار الإمضاء أو الإمضاء أثناء الإجازة)
+  // التحقق من حالة المستخدم اليوم (بصرف النظر عن كون السجل خاصاً أم عاماً لمنع التكرار)
   const hasSignedToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.ATTENDANCE);
   const hasVacationToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.VACATION);
   const hasMissionToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.MISSION);
 
   const isActionDisabled = hasSignedToday || hasVacationToday || hasMissionToday;
 
-  // الجدول العام يعرض فقط "الحضور" ولا يعرض الإجازات أو المأموريات لأي شخص بناءً على الطلب
-  const todayAttendanceOnly = todayRecordsAll.filter(r => r.type === RecordType.ATTENDANCE);
+  // الجدول العام يعرض فقط السجلات التي ليست خاصة (isPrivate = false)
+  const todayPublicRecords = todayRecordsAll.filter(r => r.isPrivate === false || r.isPrivate === undefined);
 
   const periodLabel = getPeriodLabel(new Date());
   const tableHeaderClasses = theme === 'dark' ? 'bg-zinc-900 text-zinc-400' : 'bg-gray-50 text-gray-500';
@@ -78,7 +78,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, c
 
       <div className={`${cardClasses} rounded-3xl overflow-hidden`}>
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-bold">مسجلي الحضور لليوم ({formatDate(new Date())})</h3>
+          <h3 className="font-bold">سجل الحضور والإجازات العام لليوم ({formatDate(new Date())})</h3>
           <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold dark:bg-blue-900/30 dark:text-blue-400">مباشر</span>
         </div>
         <div className="overflow-x-auto">
@@ -92,20 +92,24 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, c
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {todayAttendanceOnly.length === 0 ? (
+              {todayPublicRecords.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center opacity-40 italic">
-                    لم يتم تسجيل أي حضور حتى الآن
+                    لا توجد سجلات عامة مسجلة اليوم
                   </td>
                 </tr>
               ) : (
-                todayAttendanceOnly.map((record) => (
+                todayPublicRecords.map((record) => (
                   <tr key={record.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-medium">{record.userName}</td>
                     <td className="px-6 py-4 opacity-70">{record.dayName}</td>
                     <td className="px-6 py-4 opacity-70">{formatDate(new Date(record.date))}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        record.type === RecordType.ATTENDANCE ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        record.type === RecordType.VACATION ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                        'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                      }`}>
                         {record.type}
                       </span>
                     </td>

@@ -11,6 +11,7 @@ export interface AttendanceRecord {
   date: string; // ISO string
   dayName: string;
   type: RecordType;
+  isPrivate?: boolean; // حقل جديد لتحديد خصوصية السجل
 }
 
 export interface User {

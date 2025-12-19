@@ -26,7 +26,6 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // 1. مزامنة المستخدمين من Firebase
   useEffect(() => {
     const usersRef = ref(db, 'users');
     const unsubscribe = onValue(usersRef, (snapshot) => {
@@ -36,7 +35,6 @@ const App: React.FC = () => {
           ...data[key],
           id: key
         }));
-        // نضمن دائماً وجود الأدمن
         const hasAdmin = usersList.some(u => u.username === 'admin');
         setUsers(hasAdmin ? usersList : [...DEFAULT_USERS, ...usersList]);
       } else {
@@ -46,7 +44,6 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // 2. مزامنة سجلات الحضور من Firebase
   useEffect(() => {
     const recordsRef = ref(db, 'records');
     const unsubscribe = onValue(recordsRef, (snapshot) => {
@@ -65,7 +62,6 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // 3. تحميل الثيم (محلي فقط لكل جهاز)
   useEffect(() => {
     const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
     if (savedTheme) setTheme(savedTheme as Theme);
@@ -75,7 +71,7 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY_THEME, theme);
   }, [theme]);
 
-  const handleAddRecord = (type: RecordType, dateOverride?: Date) => {
+  const handleAddRecord = (type: RecordType, dateOverride?: Date, isPrivate: boolean = false) => {
     if (!user) return;
     const now = dateOverride || new Date();
     const recordsRef = ref(db, 'records');
@@ -85,6 +81,7 @@ const App: React.FC = () => {
       date: now.toISOString(),
       dayName: getDayName(now),
       type,
+      isPrivate // تخزين ما إذا كان السجل خاصاً أم لا
     };
 
     push(recordsRef, newRecord)
@@ -181,7 +178,7 @@ const App: React.FC = () => {
           {currentPage === 'attendance' && (
             <AttendancePage 
               records={records} 
-              onAddRecord={handleAddRecord} 
+              onAddRecord={(type) => handleAddRecord(type, undefined, false)} 
               currentUserName={user.username}
               cardClasses={cardClasses}
               theme={theme}
@@ -191,7 +188,7 @@ const App: React.FC = () => {
             <MyLogsPage
               records={records}
               currentUserName={user.username}
-              onAddRecord={handleAddRecord}
+              onAddRecord={(type, date) => handleAddRecord(type, date, true)}
               onDeleteRecord={handleDeleteRecord}
               onUpdateRecord={handleUpdateRecord}
               cardClasses={cardClasses}
