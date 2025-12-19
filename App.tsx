@@ -71,50 +71,22 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY_THEME, theme);
   }, [theme]);
 
-  const handleAddRecord = (type: RecordType, dateOverride?: Date, isPrivate: boolean = false) => {
+  const handleAddRecord = (type: RecordType, dateOverride?: Date, isPrivate: boolean = false, customName?: string) => {
     if (!user) return;
     const now = dateOverride || new Date();
     const recordsRef = ref(db, 'records');
     
     const newRecord = {
-      userName: user.username,
+      userName: customName || user.username,
       date: now.toISOString(),
       dayName: getDayName(now),
       type,
-      isPrivate // تخزين ما إذا كان السجل خاصاً أم لا
+      isPrivate
     };
 
     push(recordsRef, newRecord)
-      .then(() => alert(`تم تسجيل ${type} بنجاح!`))
+      .then(() => alert(`تم التسجيل بنجاح!`))
       .catch((err) => alert('خطأ في الاتصال بقاعدة البيانات'));
-  };
-
-  const handleAddUser = (userData: Partial<User>) => {
-    const usersRef = ref(db, 'users');
-    const newUser = {
-      username: userData.username || 'user',
-      password: userData.password || '123',
-      isAdmin: false
-    };
-    push(usersRef, newUser);
-  };
-
-  const handleUpdateUser = (id: string, updates: Partial<User>) => {
-    const userRef = ref(db, `users/${id}`);
-    update(userRef, updates);
-  };
-
-  const handleDeleteUser = (id: string) => {
-    if(id === 'admin_root') return alert('لا يمكن حذف المدير الرئيسي');
-    if(confirm('هل انت متأكد من حذف هذا المستخدم؟')) {
-      const userRef = ref(db, `users/${id}`);
-      remove(userRef);
-    }
-  };
-
-  const handleDeleteRecord = (id: string) => {
-    const recordRef = ref(db, `records/${id}`);
-    remove(recordRef);
   };
 
   const handleUpdateRecord = (id: string, updates: Partial<AttendanceRecord>) => {
@@ -122,16 +94,21 @@ const App: React.FC = () => {
     update(recordRef, updates);
   };
 
+  const handleDeleteRecord = (id: string) => {
+    if(confirm('هل انت متأكد من الحذف؟')) {
+      const recordRef = ref(db, `records/${id}`);
+      remove(recordRef);
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     setCurrentPage('attendance');
   };
 
-  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">جاري الاتصال بقاعدة البيانات...</div>;
+  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">جاري الاتصال...</div>;
 
-  if (!user) {
-    return <Login users={users} onLogin={setUser} />;
-  }
+  if (!user) return <Login users={users} onLogin={setUser} />;
 
   const themeClasses = {
     light: 'bg-gray-50 text-gray-900',
@@ -141,45 +118,37 @@ const App: React.FC = () => {
   }[theme];
 
   const cardClasses = theme === 'dark' 
-    ? 'bg-zinc-950 border-zinc-800 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)]' 
-    : theme === 'glass'
-    ? 'bg-white/10 backdrop-blur-xl border-white/20 text-white shadow-2xl'
-    : 'bg-white border-gray-100 text-gray-900 shadow-sm';
+    ? 'bg-zinc-950 border-zinc-800 shadow-none' 
+    : theme === 'glass' ? 'bg-white/10 backdrop-blur-xl border-white/20' : 'bg-white border-gray-100 shadow-sm';
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-500 ${themeClasses} ${theme === 'dark' ? 'dark' : ''}`}>
       <Sidebar 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        isOpen={sidebarOpen}
-        setIsOpen={setSidebarOpen}
-        user={user}
-        onLogout={handleLogout}
+        currentPage={currentPage} setCurrentPage={setCurrentPage} 
+        isOpen={sidebarOpen} setIsOpen={setSidebarOpen}
+        user={user} onLogout={handleLogout}
       />
 
-      <main className="flex-1 lg:mr-64 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 lg:mr-64 p-4 md:p-8">
         <div className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-8 p-6 rounded-3xl ${cardClasses}`}>
           <Clock />
-          <div className="flex items-center gap-4 order-first md:order-last">
+          <div className="flex items-center gap-4">
             <div className="text-right">
-              <h1 className="text-xl md:text-2xl font-black">حضور يوم السبت</h1>
-              <p className="text-xs opacity-60">أهلاً بك، {user.username}</p>
+              <h1 className="text-xl font-black">حضور يوم السبت</h1>
+              <p className="text-xs opacity-60">أهلاً، {user.username} {user.isAdmin ? '(مدير)' : ''}</p>
             </div>
-            <button 
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-3 bg-blue-500 text-white rounded-2xl shadow-lg active:scale-90 transition-all"
-            >
-              <span className="text-2xl">☰</span>
-            </button>
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2">☰</button>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto space-y-6 pb-20">
+        <div className="max-w-6xl mx-auto space-y-6 pb-20 text-right" dir="rtl">
           {currentPage === 'attendance' && (
             <AttendancePage 
               records={records} 
               onAddRecord={(type) => handleAddRecord(type, undefined, false)} 
-              currentUserName={user.username}
+              onUpdateRecord={handleUpdateRecord}
+              onDeleteRecord={handleDeleteRecord}
+              user={user}
               cardClasses={cardClasses}
               theme={theme}
             />
@@ -198,6 +167,8 @@ const App: React.FC = () => {
           {currentPage === 'history' && (
             <HistoryPage 
               records={records} 
+              user={user}
+              onAddManualRecord={(type, date, name) => handleAddRecord(type, date, false, name)}
               onDeleteRecord={handleDeleteRecord}
               onUpdateRecord={handleUpdateRecord}
               cardClasses={cardClasses}
@@ -207,9 +178,9 @@ const App: React.FC = () => {
           {currentPage === 'settings' && user.isAdmin && (
             <SettingsPage 
               users={users}
-              onAddUser={handleAddUser}
-              onUpdateUser={handleUpdateUser}
-              onDeleteUser={handleDeleteUser}
+              onAddUser={(ud) => push(ref(db, 'users'), ud)}
+              onUpdateUser={(id, up) => update(ref(db, `users/${id}`), up)}
+              onDeleteUser={(id) => remove(ref(db, `users/${id}`))}
               currentTheme={theme}
               onThemeChange={setTheme}
               cardClasses={cardClasses}
@@ -217,9 +188,8 @@ const App: React.FC = () => {
             />
           )}
         </div>
-
-        <footer className="max-w-6xl mx-auto py-8 border-t border-white/10 text-center opacity-50 text-sm">
-          <p>مع تحيات المطور Amir Lamay</p>
+        <footer className="text-center py-8 opacity-50 text-sm border-t border-white/10 mt-10">
+          مع تحيات المطور Amir Lamay
         </footer>
       </main>
     </div>

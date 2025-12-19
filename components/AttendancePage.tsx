@@ -1,31 +1,39 @@
 
 import React from 'react';
-import { AttendanceRecord, RecordType } from '../types';
+import { AttendanceRecord, RecordType, User } from '../types';
 import { formatDate, getPeriodLabel, isToday } from '../utils/dateUtils';
 
 interface AttendancePageProps {
   records: AttendanceRecord[];
   onAddRecord: (type: RecordType) => void;
-  currentUserName: string;
+  onUpdateRecord: (id: string, updates: Partial<AttendanceRecord>) => void;
+  onDeleteRecord: (id: string) => void;
+  user: User;
   cardClasses: string;
   theme: string;
 }
 
-const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, currentUserName, cardClasses, theme }) => {
-  // نحصل على كافة سجلات اليوم للتحقق من حالة المستخدم الحالي
+const AttendancePage: React.FC<AttendancePageProps> = ({ 
+  records, onAddRecord, onUpdateRecord, onDeleteRecord, user, cardClasses, theme 
+}) => {
   const todayRecordsAll = records.filter(r => isToday(r.date));
-  
-  // التحقق من حالة المستخدم اليوم (بصرف النظر عن كون السجل خاصاً أم عاماً لمنع التكرار)
-  const hasSignedToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.ATTENDANCE);
-  const hasVacationToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.VACATION);
-  const hasMissionToday = todayRecordsAll.some(r => r.userName === currentUserName && r.type === RecordType.MISSION);
+  const hasSignedToday = todayRecordsAll.some(r => r.userName === user.username && r.type === RecordType.ATTENDANCE);
+  const hasVacationToday = todayRecordsAll.some(r => r.userName === user.username && r.type === RecordType.VACATION);
+  const hasMissionToday = todayRecordsAll.some(r => r.userName === user.username && r.type === RecordType.MISSION);
 
-  const isActionDisabled = hasSignedToday || hasVacationToday || hasMissionToday;
-
-  // الجدول العام يعرض فقط السجلات التي ليست خاصة (isPrivate = false)
+  const isActionDisabled = !user.isAdmin && (hasSignedToday || hasVacationToday || hasMissionToday);
   const todayPublicRecords = todayRecordsAll.filter(r => r.isPrivate === false || r.isPrivate === undefined);
 
-  const periodLabel = getPeriodLabel(new Date());
+  const handleEdit = (record: AttendanceRecord) => {
+    const types = Object.values(RecordType);
+    const newType = prompt(`تغيير الحالة إلى (حضور، إجازة سنوية، مأمورية):`, record.type);
+    if (newType && types.includes(newType as RecordType)) {
+      onUpdateRecord(record.id, { type: newType as RecordType });
+    } else if (newType) {
+      alert('النوع غير صحيح');
+    }
+  };
+
   const tableHeaderClasses = theme === 'dark' ? 'bg-zinc-900 text-zinc-400' : 'bg-gray-50 text-gray-500';
 
   return (
@@ -34,84 +42,44 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ records, onAddRecord, c
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold">إمضاء حضور وانصراف</h2>
-            <p className="opacity-60 mt-1">{periodLabel}</p>
-            {hasVacationToday && <p className="text-orange-500 text-sm font-bold mt-1">⚠️ أنت مسجل في إجازة اليوم</p>}
-            {hasMissionToday && <p className="text-purple-500 text-sm font-bold mt-1">⚠️ أنت مسجل في مأمورية اليوم</p>}
+            <p className="opacity-60 mt-1">{getPeriodLabel(new Date())}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-             <button
-              onClick={() => onAddRecord(RecordType.VACATION)}
-              disabled={isActionDisabled}
-              className={`px-4 md:px-6 py-2.5 rounded-xl font-bold transition-all ${
-                isActionDisabled
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800'
-                : 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
-              }`}
-            >
-              🏖️ إجازة سنوية
-            </button>
-            <button
-              onClick={() => onAddRecord(RecordType.MISSION)}
-              disabled={isActionDisabled}
-              className={`px-4 md:px-6 py-2.5 rounded-xl font-bold transition-all ${
-                isActionDisabled
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800'
-                : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400'
-              }`}
-            >
-              🚗 مأمورية
-            </button>
-            <button
-              onClick={() => onAddRecord(RecordType.ATTENDANCE)}
-              disabled={isActionDisabled}
-              className={`px-4 md:px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg ${
-                isActionDisabled
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800'
-                : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
-              }`}
-            >
-              ✅ إمضاء حضور
-            </button>
+            <button onClick={() => onAddRecord(RecordType.VACATION)} disabled={isActionDisabled} className={`px-4 py-2.5 rounded-xl font-bold ${isActionDisabled ? 'opacity-30' : 'bg-orange-100 text-orange-700'}`}>🏖️ إجازة سنوية</button>
+            <button onClick={() => onAddRecord(RecordType.MISSION)} disabled={isActionDisabled} className={`px-4 py-2.5 rounded-xl font-bold ${isActionDisabled ? 'opacity-30' : 'bg-purple-100 text-purple-700'}`}>🚗 مأمورية</button>
+            <button onClick={() => onAddRecord(RecordType.ATTENDANCE)} disabled={isActionDisabled} className={`px-4 py-2.5 rounded-xl font-bold ${isActionDisabled ? 'opacity-30' : 'bg-blue-600 text-white shadow-lg'}`}>✅ إمضاء حضور</button>
           </div>
         </div>
       </div>
 
       <div className={`${cardClasses} rounded-3xl overflow-hidden`}>
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-bold">سجل الحضور والإجازات العام لليوم ({formatDate(new Date())})</h3>
-          <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold dark:bg-blue-900/30 dark:text-blue-400">مباشر</span>
-        </div>
+        <div className="p-4 border-b border-white/10 font-bold">سجلات اليوم ({formatDate(new Date())})</div>
         <div className="overflow-x-auto">
           <table className="w-full text-right">
             <thead className={`${tableHeaderClasses} text-sm`}>
               <tr>
-                <th className="px-6 py-4 font-semibold">اسم الموظف</th>
-                <th className="px-6 py-4 font-semibold">اليوم</th>
-                <th className="px-6 py-4 font-semibold">التاريخ</th>
-                <th className="px-6 py-4 font-semibold">الحالة</th>
+                <th className="px-6 py-4">الموظف</th>
+                <th className="px-6 py-4">الحالة</th>
+                <th className="px-6 py-4">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {todayPublicRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center opacity-40 italic">
-                    لا توجد سجلات عامة مسجلة اليوم
-                  </td>
-                </tr>
+                <tr><td colSpan={3} className="px-6 py-10 text-center opacity-40">لا توجد سجلات لليوم بعد</td></tr>
               ) : (
                 todayPublicRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-white/5 transition-colors">
+                  <tr key={record.id}>
                     <td className="px-6 py-4 font-medium">{record.userName}</td>
-                    <td className="px-6 py-4 opacity-70">{record.dayName}</td>
-                    <td className="px-6 py-4 opacity-70">{formatDate(new Date(record.date))}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        record.type === RecordType.ATTENDANCE ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        record.type === RecordType.VACATION ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                        'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      }`}>
-                        {record.type}
-                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.type === RecordType.ATTENDANCE ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>{record.type}</span>
+                    </td>
+                    <td className="px-6 py-4 flex gap-2">
+                      {(user.isAdmin || record.userName === user.username) && (
+                        <>
+                          <button onClick={() => handleEdit(record)} className="text-blue-500 hover:bg-blue-500/10 p-2 rounded">✏️</button>
+                          <button onClick={() => onDeleteRecord(record.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded">🗑️</button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
