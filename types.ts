@@ -22,4 +22,4 @@ export interface User {
 
 export type Theme = 'light' | 'dark' | 'glass' | 'corporate';
 
-export type Page = 'attendance' | 'history' | 'settings';
+export type Page = 'attendance' | 'history' | 'settings' | 'my-logs';

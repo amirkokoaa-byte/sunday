@@ -14,6 +14,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, setIsOpen, user, onLogout }) => {
   const menuItems = [
     { id: 'attendance' as Page, label: 'حضور وانصراف', icon: '📝' },
+    { id: 'my-logs' as Page, label: 'إجازاتي ومأمورياتي', icon: '🏖️' },
     { id: 'history' as Page, label: 'الحضور السابق', icon: '📅' },
   ];
 

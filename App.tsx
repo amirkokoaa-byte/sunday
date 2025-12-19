@@ -4,14 +4,14 @@ import Sidebar from './components/Sidebar';
 import AttendancePage from './components/AttendancePage';
 import HistoryPage from './components/HistoryPage';
 import SettingsPage from './components/SettingsPage';
+import MyLogsPage from './components/MyLogsPage';
 import Login from './components/Login';
 import Clock from './components/Clock';
 import { AttendanceRecord, RecordType, Page, User, Theme } from './types';
 import { getDayName } from './utils/dateUtils';
+import { db, ref, onValue, set, push, remove, update } from './utils/firebase';
 
-const STORAGE_KEY_RECORDS = 'attendance_records_v3';
-const STORAGE_KEY_USERS = 'attendance_users_v3';
-const STORAGE_KEY_THEME = 'attendance_theme_v3';
+const STORAGE_KEY_THEME = 'attendance_theme_v4';
 
 const DEFAULT_USERS: User[] = [
   { id: 'admin_root', username: 'admin', password: 'admin', isAdmin: true }
@@ -26,90 +26,103 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load Initial Data
+  // 1. مزامنة المستخدمين من Firebase
   useEffect(() => {
-    try {
-      const savedRecords = localStorage.getItem(STORAGE_KEY_RECORDS);
-      if (savedRecords) setRecords(JSON.parse(savedRecords));
-
-      const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
-      if (savedUsers) {
-        const parsedUsers = JSON.parse(savedUsers);
-        // نضمن دائماً وجود الأدمن حتى لو تم حذفه بالخطأ
-        const hasAdmin = parsedUsers.some((u: User) => u.username === 'admin');
-        setUsers(hasAdmin ? parsedUsers : [...DEFAULT_USERS, ...parsedUsers]);
+    const usersRef = ref(db, 'users');
+    const unsubscribe = onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const usersList: User[] = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        // نضمن دائماً وجود الأدمن
+        const hasAdmin = usersList.some(u => u.username === 'admin');
+        setUsers(hasAdmin ? usersList : [...DEFAULT_USERS, ...usersList]);
       } else {
         setUsers(DEFAULT_USERS);
       }
-
-      const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
-      if (savedTheme) setTheme(savedTheme as Theme);
-    } catch (error) {
-      console.error("Error loading data from localStorage:", error);
-      setUsers(DEFAULT_USERS);
-    }
-    setIsInitialized(true);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Save Data on changes
+  // 2. مزامنة سجلات الحضور من Firebase
   useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
-    }
-  }, [records, isInitialized]);
+    const recordsRef = ref(db, 'records');
+    const unsubscribe = onValue(recordsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const recordsList: AttendanceRecord[] = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        setRecords(recordsList);
+      } else {
+        setRecords([]);
+      }
+      setIsInitialized(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 3. تحميل الثيم (محلي فقط لكل جهاز)
+  useEffect(() => {
+    const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+    if (savedTheme) setTheme(savedTheme as Theme);
+  }, []);
 
   useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-    }
-  }, [users, isInitialized]);
+    localStorage.setItem(STORAGE_KEY_THEME, theme);
+  }, [theme]);
 
-  useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem(STORAGE_KEY_THEME, theme);
-    }
-  }, [theme, isInitialized]);
-
-  const handleAddRecord = (type: RecordType) => {
+  const handleAddRecord = (type: RecordType, dateOverride?: Date) => {
     if (!user) return;
-    const now = new Date();
-    const newRecord: AttendanceRecord = {
-      id: Math.random().toString(36).substr(2, 9),
+    const now = dateOverride || new Date();
+    const recordsRef = ref(db, 'records');
+    
+    const newRecord = {
       userName: user.username,
       date: now.toISOString(),
       dayName: getDayName(now),
       type,
     };
-    setRecords(prev => [newRecord, ...prev]);
-    alert(`تم تسجيل ${type} بنجاح!`);
+
+    push(recordsRef, newRecord)
+      .then(() => alert(`تم تسجيل ${type} بنجاح!`))
+      .catch((err) => alert('خطأ في الاتصال بقاعدة البيانات'));
   };
 
   const handleAddUser = (userData: Partial<User>) => {
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
+    const usersRef = ref(db, 'users');
+    const newUser = {
       username: userData.username || 'user',
       password: userData.password || '123',
       isAdmin: false
     };
-    setUsers(prev => [...prev, newUser]);
+    push(usersRef, newUser);
   };
 
   const handleUpdateUser = (id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+    const userRef = ref(db, `users/${id}`);
+    update(userRef, updates);
   };
 
   const handleDeleteUser = (id: string) => {
+    if(id === 'admin_root') return alert('لا يمكن حذف المدير الرئيسي');
     if(confirm('هل انت متأكد من حذف هذا المستخدم؟')) {
-      setUsers(prev => prev.filter(u => u.id !== id));
+      const userRef = ref(db, `users/${id}`);
+      remove(userRef);
     }
   };
 
   const handleDeleteRecord = (id: string) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
+    const recordRef = ref(db, `records/${id}`);
+    remove(recordRef);
   };
 
   const handleUpdateRecord = (id: string, updates: Partial<AttendanceRecord>) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    const recordRef = ref(db, `records/${id}`);
+    update(recordRef, updates);
   };
 
   const handleLogout = () => {
@@ -117,13 +130,12 @@ const App: React.FC = () => {
     setCurrentPage('attendance');
   };
 
-  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">جاري تحميل النظام...</div>;
+  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">جاري الاتصال بقاعدة البيانات...</div>;
 
   if (!user) {
     return <Login users={users} onLogin={setUser} />;
   }
 
-  // Theme styles
   const themeClasses = {
     light: 'bg-gray-50 text-gray-900',
     dark: 'bg-black text-white',
@@ -138,7 +150,7 @@ const App: React.FC = () => {
     : 'bg-white border-gray-100 text-gray-900 shadow-sm';
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-500 ${themeClasses} ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-500 ${themeClasses} ${theme === 'dark' ? 'dark' : ''}`}>
       <Sidebar 
         currentPage={currentPage} 
         setCurrentPage={setCurrentPage} 
@@ -165,12 +177,23 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6 pb-20">
           {currentPage === 'attendance' && (
             <AttendancePage 
               records={records} 
               onAddRecord={handleAddRecord} 
               currentUserName={user.username}
+              cardClasses={cardClasses}
+              theme={theme}
+            />
+          )}
+          {currentPage === 'my-logs' && (
+            <MyLogsPage
+              records={records}
+              currentUserName={user.username}
+              onAddRecord={handleAddRecord}
+              onDeleteRecord={handleDeleteRecord}
+              onUpdateRecord={handleUpdateRecord}
               cardClasses={cardClasses}
               theme={theme}
             />
@@ -197,6 +220,10 @@ const App: React.FC = () => {
             />
           )}
         </div>
+
+        <footer className="max-w-6xl mx-auto py-8 border-t border-white/10 text-center opacity-50 text-sm">
+          <p>مع تحيات المطور Amir Lamay</p>
+        </footer>
       </main>
     </div>
   );
