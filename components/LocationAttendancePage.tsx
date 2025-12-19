@@ -58,11 +58,11 @@ const LocationAttendancePage: React.FC<LocationAttendancePageProps> = ({
         const { latitude, longitude, accuracy } = position.coords;
         const dist = calculateDistance(latitude, longitude, branch.latitude, branch.longitude);
         
-        // Use 2000 meters (2 km) limit as requested
-        const MAX_DIST = 2000; 
+        // تعديل الحد المسموح به إلى 1000 متر كما طلب المستخدم
+        const MAX_DIST = 1000; 
 
         if (dist > MAX_DIST) {
-          setError(`أنت خارج الزون المسموح به! المسافة الحالية عن الفرع: ${(dist / 1000).toFixed(2)} كم. (الحد المسموح 2 كم)`);
+          setError(`أنت خارج نطاق الفرع! المسافة الحالية عن الفرع: ${dist.toFixed(0)} متر. (الحد المسموح 1000 متر)`);
           setLoading(false);
         } else {
           // Success
@@ -96,7 +96,7 @@ const LocationAttendancePage: React.FC<LocationAttendancePageProps> = ({
         </div>
         <div>
           <h2 className="text-2xl font-black">حضور وانصراف اللوكيشن</h2>
-          <p className="opacity-60 mt-2">يجب أن تكون في نطاق 2 كم من الفرع المحدد</p>
+          <p className="opacity-60 mt-2">يجب أن تكون في نطاق 1000 متر من الفرع المحدد</p>
         </div>
 
         <div className="max-w-sm mx-auto space-y-4">
@@ -163,6 +163,7 @@ const LocationAttendancePage: React.FC<LocationAttendancePageProps> = ({
           <li>يجب إعطاء المتصفح صلاحية الوصول للموقع الجغرافي.</li>
           <li>نظام الحماية يكتشف برامج تغيير الموقع (Fake Location).</li>
           <li>يتم تسجيل إحداثيات موقعك الفعلي ورابط الخريطة في السجل.</li>
+          <li>يجب أن تكون ضمن مسافة 1000 متر كحد أقصى من الفرع.</li>
         </ul>
       </div>
     </div>
