@@ -29,6 +29,7 @@ export interface UserLocationConfig {
 export interface AttendanceRecord {
   id: string;
   userName: string;
+  department?: string;
   date: string; // ISO string
   dayName: string;
   type: RecordType;
@@ -64,6 +65,7 @@ export interface User {
   id: string;
   username: string;
   password: string;
+  department?: string;
   isAdmin: boolean;
   permissions?: UserPermissions;
 }

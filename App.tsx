@@ -17,7 +17,7 @@ import { db, ref, onValue, push, remove, update } from './utils/firebase';
 const STORAGE_KEY_THEME = 'attendance_theme_v5';
 
 const DEFAULT_USERS: User[] = [
-  { id: 'admin_root', username: 'admin', password: 'admin', isAdmin: true }
+  { id: 'admin_root', username: 'admin', password: 'admin', isAdmin: true, department: 'الإدارة' }
 ];
 
 const App: React.FC = () => {
@@ -32,7 +32,6 @@ const App: React.FC = () => {
   const [appName, setAppName] = useState('نظام الحضور الذكي');
 
   useEffect(() => {
-    // جلب اسم البرنامج من الإعدادات
     const configRef = ref(db, 'appConfig/name');
     const unsubscribeConfig = onValue(configRef, (snapshot) => {
       const name = snapshot.val();
@@ -112,6 +111,7 @@ const App: React.FC = () => {
     
     const newRecord = {
       userName: customName || user.username,
+      department: user.department || 'عام',
       date: now.toISOString(),
       dayName: getDayName(now),
       type,
@@ -121,15 +121,7 @@ const App: React.FC = () => {
       accuracy: accuracy || null
     };
 
-    push(recordsRef, newRecord)
-      .then(() => {
-        // We don't alert here anymore to provide a smoother UX
-        // The UI will update automatically from Firebase listener
-      })
-      .catch((e) => {
-        console.error(e);
-        alert('خطأ في الاتصال بقاعدة البيانات');
-      });
+    push(recordsRef, newRecord);
   };
 
   const handleUpdateRecord = (id: string, updates: Partial<AttendanceRecord>) => {
@@ -178,16 +170,6 @@ const App: React.FC = () => {
     rose: 'bg-white border-rose-100 text-rose-900 shadow-md'
   };
 
-  const themeOptions: { id: Theme; label: string; icon: string }[] = [
-    { id: 'light', label: 'الوضع الفاتح', icon: '☀️' },
-    { id: 'dark', label: 'الوضع الليلي', icon: '🌙' },
-    { id: 'glass', label: 'التصميم الزجاجي', icon: '❄️' },
-    { id: 'corporate', label: 'الوضع الرسمي', icon: '💼' },
-    { id: 'midnight', label: 'منتصف الليل', icon: '🌌' },
-    { id: 'emerald', label: 'النمط الزمردي', icon: '🌿' },
-    { id: 'rose', label: 'النمط الزهري', icon: '🌸' }
-  ];
-
   return (
     <div className={`min-h-screen flex flex-col transition-all duration-700 ease-in-out ${themeClasses[theme]} ${theme === 'dark' || theme === 'midnight' ? 'dark' : ''}`}>
       <Sidebar 
@@ -198,7 +180,6 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 lg:mr-64 p-4 md:p-8 overflow-x-hidden">
-        {/* Top Navigation Header */}
         <header className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-10 p-6 rounded-[32px] relative border ${cardClasses[theme]}`}>
           <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-start">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-3 bg-white/5 rounded-2xl text-2xl hover:bg-white/10 transition-colors">☰</button>
@@ -210,45 +191,17 @@ const App: React.FC = () => {
               <h1 className="text-xl font-black tracking-tight">{appName}</h1>
               <div className="flex items-center justify-end gap-2 mt-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <p className="text-[10px] font-black opacity-60 uppercase">أهلاً، {user.username}</p>
+                <p className="text-[10px] font-black opacity-60 uppercase">أهلاً، {user.username} {user.department ? `(${user.department})` : ''}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <button 
-                  onClick={() => setShowThemeMenu(!showThemeMenu)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95"
-                  title="تغيير المظهر"
-                >
-                  <span className="text-xl">🎨</span>
-                </button>
-                
-                {showThemeMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowThemeMenu(false)}></div>
-                    <div className={`absolute top-full mt-3 left-0 w-56 rounded-3xl p-3 z-50 shadow-2xl border ${cardClasses[theme]} animate-in fade-in zoom-in duration-200`}>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black opacity-40 px-3 py-1 mb-1 uppercase text-center border-b border-white/5">اختر الستايل المناسب</p>
-                        {themeOptions.map((opt) => (
-                          <button
-                            key={opt.id}
-                            onClick={() => {
-                              setTheme(opt.id);
-                              setShowThemeMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-right transition-all ${theme === opt.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'hover:bg-white/5'}`}
-                          >
-                            <span className="text-lg">{opt.icon}</span>
-                            <span className="text-sm font-bold">{opt.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              
+              <button 
+                onClick={() => setShowThemeMenu(!showThemeMenu)}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95"
+              >
+                <span className="text-xl">🎨</span>
+              </button>
               <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-blue-500 sm:hidden">
                  {user.username.charAt(0).toUpperCase()}
               </div>
@@ -256,7 +209,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Dynamic Page Content with Max Width Wrapper */}
         <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in slide-in-from-bottom-4 duration-500" dir="rtl">
           {currentPage === 'attendance' && (
             <AttendancePage 
@@ -265,6 +217,7 @@ const App: React.FC = () => {
               onUpdateRecord={handleUpdateRecord}
               onDeleteRecord={handleDeleteRecord}
               user={user}
+              users={users}
               cardClasses={cardClasses[theme]}
               theme={theme}
             />
@@ -329,7 +282,6 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Mobile-Friendly Footer */}
         <footer className="text-center py-10 opacity-40 text-[10px] border-t border-white/5 mt-16 font-bold tracking-widest">
            نظام الحضور والإنصراف الذكي &bull; 2024 &bull; تطوير وتصميم Amir Lamay
         </footer>

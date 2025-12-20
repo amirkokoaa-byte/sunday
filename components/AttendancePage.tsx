@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AttendanceRecord, RecordType, User } from '../types';
 import { formatDate, getPeriodLabel, isToday } from '../utils/dateUtils';
 
@@ -9,12 +9,13 @@ interface AttendancePageProps {
   onUpdateRecord: (id: string, updates: Partial<AttendanceRecord>) => void;
   onDeleteRecord: (id: string) => void;
   user: User;
+  users: User[];
   cardClasses: string;
   theme: string;
 }
 
 const AttendancePage: React.FC<AttendancePageProps> = ({ 
-  records, onAddRecord, onUpdateRecord, onDeleteRecord, user, cardClasses, theme 
+  records, onAddRecord, onUpdateRecord, onDeleteRecord, user, users, cardClasses, theme 
 }) => {
   const today = new Date();
   const todayStr = formatDate(today);
@@ -34,10 +35,31 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
     ? todayRecordsAll 
     : todayRecordsAll.filter(r => r.userName === user.username);
 
-  // Quick Stats for Admin/User
+  // Quick Stats
   const presentCount = todayRecordsAll.filter(r => r.type === RecordType.ATTENDANCE || r.type === RecordType.LOC_ATTENDANCE).length;
   const vacationCount = todayRecordsAll.filter(r => r.type === RecordType.VACATION).length;
   const missionCount = todayRecordsAll.filter(r => r.type === RecordType.MISSION).length;
+
+  // Group by Department (For Admin only)
+  const attendanceByDept = useMemo(() => {
+    const groups: { [dept: string]: { present: string[], count: number } } = {};
+    
+    todayRecordsAll.forEach(record => {
+      if (record.type === RecordType.ATTENDANCE || record.type === RecordType.LOC_ATTENDANCE) {
+        // Try to find the user to get their department if not in record
+        let dept = record.department || 'عام';
+        if (!record.department) {
+           const u = users.find(usr => usr.username === record.userName);
+           if (u?.department) dept = u.department;
+        }
+
+        if (!groups[dept]) groups[dept] = { present: [], count: 0 };
+        groups[dept].present.push(record.userName);
+        groups[dept].count += 1;
+      }
+    });
+    return groups;
+  }, [todayRecordsAll, users]);
 
   const handleEdit = (record: AttendanceRecord) => {
     const types = Object.values(RecordType);
@@ -79,6 +101,32 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
           <div className="w-12 h-12 bg-purple-500/10 text-purple-500 flex items-center justify-center rounded-2xl text-2xl">🚗</div>
         </div>
       </div>
+
+      {/* Admin Department Grouping View */}
+      {user.isAdmin && Object.keys(attendanceByDept).length > 0 && (
+        <div className={`${cardClasses} p-6 rounded-3xl border border-white/5 space-y-4`}>
+          <div className="flex items-center gap-2 mb-2">
+             <span className="text-xl">📊</span>
+             <h3 className="text-lg font-black">الحضور حسب القسم</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+             {/* Fix: Cast Object.entries to provide correct typing for data object to avoid 'unknown' type errors */}
+             {(Object.entries(attendanceByDept) as [string, { present: string[], count: number }][]).map(([dept, data]) => (
+               <div key={dept} className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-black text-sm text-blue-500">{dept}</span>
+                    <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{data.count} حاضر</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {data.present.map(name => (
+                      <span key={name} className="text-[10px] opacity-70 bg-white/5 px-2 py-0.5 rounded-lg border border-white/5">{name}</span>
+                    ))}
+                  </div>
+               </div>
+             ))}
+          </div>
+        </div>
+      )}
 
       <div className={`${cardClasses} p-6 rounded-3xl border border-white/5`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -133,9 +181,9 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
             <thead className={`${tableHeaderClasses} text-[11px] font-black uppercase`}>
               <tr>
                 <th className="px-6 py-4">الموظف</th>
+                <th className="px-6 py-4">القسم</th>
                 <th className="px-6 py-4">الوقت</th>
                 <th className="px-6 py-4">الحالة</th>
-                <th className="px-6 py-4">الفرع/الموقع</th>
                 <th className="px-6 py-4 text-center">الإجراءات</th>
               </tr>
             </thead>
@@ -160,6 +208,9 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
                         <span className="font-bold text-sm">{record.userName}</span>
                       </div>
                     </td>
+                    <td className="px-6 py-5">
+                       <span className="text-[10px] font-bold opacity-60">{record.department || 'عام'}</span>
+                    </td>
                     <td className="px-6 py-5 text-xs font-mono opacity-70">
                       {new Date(record.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                     </td>
@@ -172,23 +223,6 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
                       }`}>
                         {record.type}
                       </span>
-                    </td>
-                    <td className="px-6 py-5">
-                       {record.branchName ? (
-                         <div className="flex flex-col gap-1">
-                           <span className="font-black text-xs">{record.branchName}</span>
-                           {record.locationLink && (
-                             <a 
-                               href={record.locationLink} 
-                               target="_blank" 
-                               rel="noreferrer"
-                               className="text-blue-500 hover:underline text-[10px] font-bold flex items-center gap-1"
-                             >
-                               <span>📍 عرض الموقع</span>
-                             </a>
-                           )}
-                         </div>
-                       ) : <span className="opacity-20">--</span>}
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex justify-center gap-1">
