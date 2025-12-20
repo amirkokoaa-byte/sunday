@@ -19,20 +19,25 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
   const today = new Date();
   const todayStr = formatDate(today);
   
-  // تصفية سجلات اليوم فقط
+  // Get today's records
   const todayRecordsAll = records.filter(r => isToday(r.date));
   
-  // للمستخدم العادي: هل سجل اليوم؟
+  // User status today
   const hasSignedToday = todayRecordsAll.some(r => r.userName === user.username && r.type === RecordType.ATTENDANCE);
   const hasVacationToday = todayRecordsAll.some(r => r.userName === user.username && r.type === RecordType.VACATION);
   const hasMissionToday = todayRecordsAll.some(r => r.userName === user.username && r.type === RecordType.MISSION);
 
   const isActionDisabled = !user.isAdmin && (hasSignedToday || hasVacationToday || hasMissionToday);
   
-  // السجلات التي تظهر في الجدول (للموظف سجلاته، للآدمن الكل)
+  // Records to display (User's own or all for Admin)
   const displayRecords = user.isAdmin 
     ? todayRecordsAll 
     : todayRecordsAll.filter(r => r.userName === user.username);
+
+  // Quick Stats for Admin/User
+  const presentCount = todayRecordsAll.filter(r => r.type === RecordType.ATTENDANCE || r.type === RecordType.LOC_ATTENDANCE).length;
+  const vacationCount = todayRecordsAll.filter(r => r.type === RecordType.VACATION).length;
+  const missionCount = todayRecordsAll.filter(r => r.type === RecordType.MISSION).length;
 
   const handleEdit = (record: AttendanceRecord) => {
     const types = Object.values(RecordType);
@@ -44,74 +49,168 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
     }
   };
 
-  const tableHeaderClasses = theme === 'dark' ? 'bg-zinc-900 text-zinc-400' : 'bg-gray-50 text-gray-500';
+  const tableHeaderClasses = theme === 'dark' || theme === 'midnight' || theme === 'corporate' 
+    ? 'bg-zinc-900/50 text-zinc-400' 
+    : 'bg-gray-50 text-gray-500';
 
   return (
     <div className="space-y-6">
-      <div className={`${cardClasses} p-6 rounded-3xl`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Quick Summary Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
           <div>
-            <h2 className="text-2xl font-bold">إمضاء حضور وانصراف</h2>
-            <p className="opacity-60 mt-1">{getPeriodLabel(today)}</p>
+            <p className="text-xs font-bold opacity-60">الحضور اليوم</p>
+            <p className="text-2xl font-black mt-1">{presentCount}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => onAddRecord(RecordType.VACATION)} disabled={isActionDisabled} className={`px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 ${isActionDisabled ? 'opacity-30' : 'bg-orange-100 text-orange-700'}`}>🏖️ إجازة سنوية</button>
-            <button onClick={() => onAddRecord(RecordType.MISSION)} disabled={isActionDisabled} className={`px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 ${isActionDisabled ? 'opacity-30' : 'bg-purple-100 text-purple-700'}`}>🚗 مأمورية</button>
-            <button onClick={() => onAddRecord(RecordType.ATTENDANCE)} disabled={isActionDisabled} className={`px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 ${isActionDisabled ? 'opacity-30' : 'bg-blue-600 text-white shadow-lg'}`}>✅ إمضاء حضور</button>
+          <div className="w-12 h-12 bg-green-500/10 text-green-500 flex items-center justify-center rounded-2xl text-2xl">✅</div>
+        </div>
+        <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
+          <div>
+            <p className="text-xs font-bold opacity-60">الإجازات</p>
+            <p className="text-2xl font-black mt-1">{vacationCount}</p>
           </div>
+          <div className="w-12 h-12 bg-orange-500/10 text-orange-500 flex items-center justify-center rounded-2xl text-2xl">🏖️</div>
+        </div>
+        <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
+          <div>
+            <p className="text-xs font-bold opacity-60">المأموريات</p>
+            <p className="text-2xl font-black mt-1">{missionCount}</p>
+          </div>
+          <div className="w-12 h-12 bg-purple-500/10 text-purple-500 flex items-center justify-center rounded-2xl text-2xl">🚗</div>
         </div>
       </div>
 
-      <div className={`${cardClasses} rounded-3xl overflow-hidden`}>
-        <div className="p-4 border-b border-white/10 font-bold flex justify-between items-center">
-          <span>سجلات اليوم ({todayStr})</span>
-          {user.isAdmin && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">عرض الإدارة</span>}
+      <div className={`${cardClasses} p-6 rounded-3xl border border-white/5`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">إمضاء حضور وانصراف</h2>
+            <p className="opacity-60 mt-1 font-bold">{getPeriodLabel(today)}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={() => onAddRecord(RecordType.VACATION)} 
+              disabled={isActionDisabled} 
+              className={`px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm'}`}
+            >
+              <span>🏖️</span>
+              إجازة سنوية
+            </button>
+            <button 
+              onClick={() => onAddRecord(RecordType.MISSION)} 
+              disabled={isActionDisabled} 
+              className={`px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-purple-100 text-purple-700 hover:bg-purple-200 shadow-sm'}`}
+            >
+              <span>🚗</span>
+              مأمورية
+            </button>
+            <button 
+              onClick={() => onAddRecord(RecordType.ATTENDANCE)} 
+              disabled={isActionDisabled} 
+              className={`px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2 shadow-xl ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
+              <span>✅</span>
+              إمضاء حضور
+            </button>
+          </div>
+        </div>
+        {isActionDisabled && !user.isAdmin && (
+          <p className="text-[10px] text-orange-500 font-bold mt-4 bg-orange-500/10 p-2 rounded-lg inline-block">
+            ⚠️ لقد قمت بتسجيل حالتك لليوم بالفعل. لا يمكنك التسجيل مرة أخرى.
+          </p>
+        )}
+      </div>
+
+      <div className={`${cardClasses} rounded-3xl overflow-hidden border border-white/5 shadow-2xl`}>
+        <div className="p-5 border-b border-white/10 font-black flex justify-between items-center bg-white/5">
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span>سجلات اليوم ({todayStr})</span>
+          </div>
+          {user.isAdmin && <span className="text-[10px] bg-blue-500 text-white px-3 py-1 rounded-full font-black uppercase tracking-wider">لوحة الإدارة</span>}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-right">
-            <thead className={`${tableHeaderClasses} text-sm`}>
+          <table className="w-full text-right border-collapse">
+            <thead className={`${tableHeaderClasses} text-[11px] font-black uppercase`}>
               <tr>
                 <th className="px-6 py-4">الموظف</th>
                 <th className="px-6 py-4">الوقت</th>
                 <th className="px-6 py-4">الحالة</th>
                 <th className="px-6 py-4">الفرع/الموقع</th>
-                <th className="px-6 py-4">الإجراءات</th>
+                <th className="px-6 py-4 text-center">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {displayRecords.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center opacity-40">لا توجد سجلات لليوم بعد</td></tr>
+                <tr>
+                  <td colSpan={5} className="px-6 py-20 text-center">
+                    <div className="opacity-30 flex flex-col items-center gap-3">
+                      <span className="text-5xl">📭</span>
+                      <span className="font-bold">لا توجد سجلات لليوم حتى الآن</span>
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 displayRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 font-medium">{record.userName}</td>
-                    <td className="px-6 py-4 text-xs font-mono opacity-70">
+                  <tr key={record.id} className="hover:bg-white/5 transition-all duration-200">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-xs uppercase">
+                          {record.userName.charAt(0)}
+                        </div>
+                        <span className="font-bold text-sm">{record.userName}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-xs font-mono opacity-70">
                       {new Date(record.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                    <td className="px-6 py-5">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black shadow-sm ${
                         record.type === RecordType.ATTENDANCE || record.type === RecordType.LOC_ATTENDANCE 
-                        ? 'bg-green-500/10 text-green-500' 
-                        : 'bg-blue-500/10 text-blue-500'
+                        ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+                        : record.type === RecordType.VACATION ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
+                        : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'
                       }`}>
                         {record.type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-[11px]">
+                    <td className="px-6 py-5">
                        {record.branchName ? (
-                         <div className="flex flex-col">
-                           <span className="font-bold">{record.branchName}</span>
-                           {record.locationLink && <a href={record.locationLink} target="_blank" className="text-blue-500 underline">خريطة 📍</a>}
+                         <div className="flex flex-col gap-1">
+                           <span className="font-black text-xs">{record.branchName}</span>
+                           {record.locationLink && (
+                             <a 
+                               href={record.locationLink} 
+                               target="_blank" 
+                               rel="noreferrer"
+                               className="text-blue-500 hover:underline text-[10px] font-bold flex items-center gap-1"
+                             >
+                               <span>📍 عرض الموقع</span>
+                             </a>
+                           )}
                          </div>
-                       ) : <span className="opacity-30">--</span>}
+                       ) : <span className="opacity-20">--</span>}
                     </td>
-                    <td className="px-6 py-4 flex gap-2">
-                      {(user.isAdmin || record.userName === user.username) && (
-                        <>
-                          <button onClick={() => handleEdit(record)} className="text-blue-500 hover:bg-blue-500/10 p-2 rounded">✏️</button>
-                          <button onClick={() => onDeleteRecord(record.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded">🗑️</button>
-                        </>
-                      )}
+                    <td className="px-6 py-5">
+                      <div className="flex justify-center gap-1">
+                        {(user.isAdmin || record.userName === user.username) && (
+                          <>
+                            <button 
+                              onClick={() => handleEdit(record)} 
+                              className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
+                              title="تعديل"
+                            >
+                              ✏️
+                            </button>
+                            <button 
+                              onClick={() => onDeleteRecord(record.id)} 
+                              className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                              title="حذف"
+                            >
+                              🗑️
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
