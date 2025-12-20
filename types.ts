@@ -59,6 +59,7 @@ export interface UserPermissions {
   settings: boolean;
   vacationRequest: boolean;
   adminVacations: boolean;
+  viewAllTodayRecords: boolean;
 }
 
 export interface User {

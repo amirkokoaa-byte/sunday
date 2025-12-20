@@ -180,18 +180,19 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 lg:mr-64 p-4 md:p-8 overflow-x-hidden">
-        <header className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-10 p-6 rounded-[32px] relative border ${cardClasses[theme]}`}>
+        {/* Header المحسن */}
+        <header className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-10 p-6 rounded-[32px] relative border ${cardClasses[theme]} shadow-xl`}>
           <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-start">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-3 bg-white/5 rounded-2xl text-2xl hover:bg-white/10 transition-colors">☰</button>
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-3 bg-blue-500/10 rounded-2xl text-2xl hover:bg-blue-500/20 transition-colors">☰</button>
             <Clock />
           </div>
           
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-            <div className="text-right hidden sm:block">
-              <h1 className="text-xl font-black tracking-tight">{appName}</h1>
+            <div className="text-right border-r-2 border-blue-500/30 pr-4 mr-2">
+              <h1 className="text-xl font-black tracking-tight text-blue-600 dark:text-blue-400">{user.username}</h1>
               <div className="flex items-center justify-end gap-2 mt-1">
+                <p className="text-[11px] font-black opacity-70 uppercase tracking-widest">{user.department || 'موظف'}</p>
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <p className="text-[10px] font-black opacity-60 uppercase">أهلاً، {user.username} {user.department ? `(${user.department})` : ''}</p>
               </div>
             </div>
 
@@ -199,10 +200,11 @@ const App: React.FC = () => {
               <button 
                 onClick={() => setShowThemeMenu(!showThemeMenu)}
                 className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95"
+                title="تغيير الثيم"
               >
                 <span className="text-xl">🎨</span>
               </button>
-              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-blue-500 sm:hidden">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center text-xl font-black shadow-lg">
                  {user.username.charAt(0).toUpperCase()}
               </div>
             </div>
@@ -283,7 +285,7 @@ const App: React.FC = () => {
         </div>
 
         <footer className="text-center py-10 opacity-40 text-[10px] border-t border-white/5 mt-16 font-bold tracking-widest">
-           نظام الحضور والإنصراف الذكي &bull; 2024 &bull; تطوير وتصميم Amir Lamay
+           {appName} &bull; 2024 &bull; نظام الحضور والإنصراف الذكي
         </footer>
       </main>
     </div>

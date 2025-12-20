@@ -30,8 +30,16 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
 
   const isActionDisabled = !user.isAdmin && (hasSignedToday || hasVacationToday || hasMissionToday);
   
-  // التعديل: عرض سجلات الجميع لكل من يملك صلاحية الدخول للخانة
-  const displayRecords = todayRecordsAll;
+  // التحقق من صلاحية رؤية سجلات الجميع
+  const canViewAll = user.isAdmin || (user.permissions?.viewAllTodayRecords === true);
+
+  // التعديل الرئيسي: تصفية السجلات بناءً على الصلاحية
+  const displayRecords = canViewAll 
+    ? todayRecordsAll 
+    : todayRecordsAll.filter(r => r.userName === user.username);
+
+  // التحقق من صلاحية تسجيل الحضور (لإظهار أو إخفاء صندوق الأزرار)
+  const canPerformAttendance = user.isAdmin || (user.permissions ? user.permissions.attendance : true);
 
   // Quick Stats
   const presentCount = todayRecordsAll.filter(r => r.type === RecordType.ATTENDANCE || r.type === RecordType.LOC_ATTENDANCE).length;
@@ -74,30 +82,32 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Quick Summary Dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
-          <div>
-            <p className="text-xs font-bold opacity-60">الحضور اليوم</p>
-            <p className="text-2xl font-black mt-1">{presentCount}</p>
+      {/* Quick Summary Dashboard - Only visible to those who can view all stats */}
+      {canViewAll && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
+            <div>
+              <p className="text-xs font-bold opacity-60">الحضور اليوم</p>
+              <p className="text-2xl font-black mt-1">{presentCount}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-500/10 text-green-500 flex items-center justify-center rounded-2xl text-2xl">✅</div>
           </div>
-          <div className="w-12 h-12 bg-green-500/10 text-green-500 flex items-center justify-center rounded-2xl text-2xl">✅</div>
-        </div>
-        <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
-          <div>
-            <p className="text-xs font-bold opacity-60">الإجازات</p>
-            <p className="text-2xl font-black mt-1">{vacationCount}</p>
+          <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
+            <div>
+              <p className="text-xs font-bold opacity-60">الإجازات</p>
+              <p className="text-2xl font-black mt-1">{vacationCount}</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-500/10 text-orange-500 flex items-center justify-center rounded-2xl text-2xl">🏖️</div>
           </div>
-          <div className="w-12 h-12 bg-orange-500/10 text-orange-500 flex items-center justify-center rounded-2xl text-2xl">🏖️</div>
-        </div>
-        <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
-          <div>
-            <p className="text-xs font-bold opacity-60">المأموريات</p>
-            <p className="text-2xl font-black mt-1">{missionCount}</p>
+          <div className={`${cardClasses} p-6 rounded-3xl flex items-center justify-between border border-white/5`}>
+            <div>
+              <p className="text-xs font-bold opacity-60">المأموريات</p>
+              <p className="text-2xl font-black mt-1">{missionCount}</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-500/10 text-purple-500 flex items-center justify-center rounded-2xl text-2xl">🚗</div>
           </div>
-          <div className="w-12 h-12 bg-purple-500/10 text-purple-500 flex items-center justify-center rounded-2xl text-2xl">🚗</div>
         </div>
-      </div>
+      )}
 
       {/* Admin Department Grouping View */}
       {user.isAdmin && Object.keys(attendanceByDept).length > 0 && (
@@ -124,51 +134,55 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
         </div>
       )}
 
-      <div className={`${cardClasses} p-6 rounded-3xl border border-white/5`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black">إمضاء حضور وانصراف</h2>
-            <p className="opacity-60 mt-1 font-bold">{getPeriodLabel(today)}</p>
+      {/* تسجيل الحضور */}
+      {canPerformAttendance && (
+        <div className={`${cardClasses} p-6 rounded-3xl border border-white/5`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-black">إمضاء حضور وانصراف</h2>
+              <p className="opacity-60 mt-1 font-bold">{getPeriodLabel(today)}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button 
+                onClick={() => onAddRecord(RecordType.VACATION)} 
+                disabled={isActionDisabled} 
+                className={`px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm'}`}
+              >
+                <span>🏖️</span>
+                إجازة سنوية
+              </button>
+              <button 
+                onClick={() => onAddRecord(RecordType.MISSION)} 
+                disabled={isActionDisabled} 
+                className={`px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-purple-100 text-purple-700 hover:bg-purple-200 shadow-sm'}`}
+              >
+                <span>🚗</span>
+                مأمورية
+              </button>
+              <button 
+                onClick={() => onAddRecord(RecordType.ATTENDANCE)} 
+                disabled={isActionDisabled} 
+                className={`px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2 shadow-xl ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              >
+                <span>✅</span>
+                إمضاء حضور
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => onAddRecord(RecordType.VACATION)} 
-              disabled={isActionDisabled} 
-              className={`px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm'}`}
-            >
-              <span>🏖️</span>
-              إجازة سنوية
-            </button>
-            <button 
-              onClick={() => onAddRecord(RecordType.MISSION)} 
-              disabled={isActionDisabled} 
-              className={`px-4 py-3 rounded-2xl font-bold transition-all active:scale-95 flex items-center gap-2 ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-purple-100 text-purple-700 hover:bg-purple-200 shadow-sm'}`}
-            >
-              <span>🚗</span>
-              مأمورية
-            </button>
-            <button 
-              onClick={() => onAddRecord(RecordType.ATTENDANCE)} 
-              disabled={isActionDisabled} 
-              className={`px-6 py-3 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-2 shadow-xl ${isActionDisabled ? 'opacity-30 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-            >
-              <span>✅</span>
-              إمضاء حضور
-            </button>
-          </div>
+          {isActionDisabled && !user.isAdmin && (
+            <p className="text-[10px] text-orange-500 font-bold mt-4 bg-orange-500/10 p-2 rounded-lg inline-block">
+              ⚠️ لقد قمت بتسجيل حالتك لليوم بالفعل.
+            </p>
+          )}
         </div>
-        {isActionDisabled && !user.isAdmin && (
-          <p className="text-[10px] text-orange-500 font-bold mt-4 bg-orange-500/10 p-2 rounded-lg inline-block">
-            ⚠️ لقد قمت بتسجيل حالتك لليوم بالفعل. لا يمكنك التسجيل مرة أخرى.
-          </p>
-        )}
-      </div>
+      )}
 
+      {/* جدول السجلات */}
       <div className={`${cardClasses} rounded-3xl overflow-hidden border border-white/5 shadow-2xl`}>
         <div className="p-5 border-b border-white/10 font-black flex justify-between items-center bg-white/5">
           <div className="flex items-center gap-3">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span>سجلات اليوم ({todayStr})</span>
+            <span>{canViewAll ? 'سجلات اليوم لجميع العاملين' : 'سجلي اليوم'} ({todayStr})</span>
           </div>
           {user.isAdmin && <span className="text-[10px] bg-blue-500 text-white px-3 py-1 rounded-full font-black uppercase tracking-wider">لوحة الإدارة</span>}
         </div>
@@ -189,7 +203,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
                   <td colSpan={5} className="px-6 py-20 text-center">
                     <div className="opacity-30 flex flex-col items-center gap-3">
                       <span className="text-5xl">📭</span>
-                      <span className="font-bold">لا توجد سجلات لليوم حتى الآن</span>
+                      <span className="font-bold">لا توجد سجلات لعرضها</span>
                     </div>
                   </td>
                 </tr>

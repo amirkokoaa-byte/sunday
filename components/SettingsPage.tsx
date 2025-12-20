@@ -24,13 +24,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   const [newDepartment, setNewDepartment] = useState('');
   const [tempAppName, setTempAppName] = useState(appName);
   
-  // Location Management State
   const [selectedUserId, setSelectedUserId] = useState('');
   const [userLocations, setUserLocations] = useState<UserLocationConfig[]>([]);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [currentBranches, setCurrentBranches] = useState<BranchLocation[]>([]);
   
-  // Permissions State
   const [showPermModal, setShowPermModal] = useState(false);
   const [permUserId, setPermUserId] = useState('');
   const [userPerms, setUserPerms] = useState<UserPermissions>({
@@ -40,17 +38,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     history: true,
     settings: false,
     vacationRequest: true,
-    adminVacations: false
+    adminVacations: false,
+    viewAllTodayRecords: false
   });
 
-  // Edit User Modal State
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editUserId, setEditUserId] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editDepartment, setEditDepartment] = useState('');
 
-  // Branch Modal State
   const [tempBranchName, setTempBranchName] = useState('');
   const [tempBranchAddress, setTempBranchAddress] = useState('');
   const [tempBranchLocation, setTempBranchLocation] = useState('');
@@ -77,7 +74,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     setPermUserId(userId);
     const targetUser = users.find(u => u.id === userId);
     if (targetUser && targetUser.permissions) {
-      setUserPerms(targetUser.permissions);
+      setUserPerms({
+        ...targetUser.permissions,
+        viewAllTodayRecords: targetUser.permissions.viewAllTodayRecords || false
+      });
     } else {
       setUserPerms({
         attendance: true,
@@ -86,7 +86,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         history: true,
         settings: false,
         vacationRequest: true,
-        adminVacations: false
+        adminVacations: false,
+        viewAllTodayRecords: false
       });
     }
   };
@@ -140,50 +141,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       .then(() => alert('تم تحديث اسم البرنامج بنجاح'));
   };
 
-  const handleSelectUserForLocation = (userId: string) => {
-    setSelectedUserId(userId);
-    const config = userLocations.find(l => l.userId === userId);
-    setCurrentBranches(config?.branches || []);
-  };
-
-  const saveBranch = async () => {
-    if (!tempBranchName || !tempBranchLocation) {
-      alert('يرجى إكمال البيانات');
-      return;
-    }
-    let locationToParse = tempBranchLocation;
-    if (tempBranchLocation.includes('maps.app.goo.gl') || tempBranchLocation.includes('goo.gl/maps')) {
-      setIsResolving(true);
-      const resolved = await resolveShortLink(tempBranchLocation);
-      if (resolved) locationToParse = resolved;
-      setIsResolving(false);
-    }
-    const coords = parseCoordinates(locationToParse);
-    if (!coords) {
-      alert('تعذر استخراج الإحداثيات');
-      return;
-    }
-    const newBranch: BranchLocation = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: tempBranchName,
-      address: tempBranchAddress,
-      latitude: coords.lat,
-      longitude: coords.lng
-    };
-    const updated = [...currentBranches, newBranch];
-    setCurrentBranches(updated);
-    setTempBranchName(''); setTempBranchAddress(''); setTempBranchLocation('');
-    setShowBranchModal(false);
-  };
-
-  const saveAllUserLocations = () => {
-    if (!selectedUserId) return;
-    set(ref(db, `userLocations/${selectedUserId}`), { branches: currentBranches })
-      .then(() => alert('تم حفظ المواقع بنجاح'));
-  };
-
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-10 text-right" dir="rtl">
       <div className={`${cardClasses} p-6 rounded-3xl`}>
         <h2 className="text-xl font-bold mb-4">⚙️ إعدادات عامة للنظام</h2>
         <div className="flex flex-col md:flex-row gap-4">
@@ -208,15 +167,79 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
 
       <div className={`${cardClasses} p-6 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4`}>
-        <h2 className="text-xl font-bold">صلاحيات الحسابات</h2>
+        <h2 className="text-xl font-bold">إدارة صلاحيات الوصول</h2>
         <button 
           onClick={() => setShowPermModal(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-2xl font-bold shadow-xl transition-all active:scale-95"
+          className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-2xl font-bold shadow-xl transition-all active:scale-95 flex items-center gap-2"
         >
-          ⚙️ إدارة صلاحيات المستخدمين
+          <span>🔐</span> إدارة صلاحيات المستخدمين
         </button>
       </div>
 
+      {/* Permissions Modal */}
+      {showPermModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+           <div className={`${cardClasses} w-full max-w-2xl p-8 rounded-[40px] shadow-2xl space-y-6 overflow-y-auto max-h-[90vh]`}>
+              <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                 <h3 className="text-2xl font-black">🔐 إعدادات الصلاحيات</h3>
+                 <button onClick={() => setShowPermModal(false)} className="text-2xl opacity-50">✖</button>
+              </div>
+
+              <div className="space-y-4">
+                 <div className="space-y-1">
+                    <label className="text-xs font-bold opacity-60">اختر المستخدم للتعديل</label>
+                    <select 
+                      className="w-full p-4 bg-black/5 dark:bg-white/10 rounded-2xl outline-none border border-white/5"
+                      value={permUserId}
+                      onChange={(e) => handleSelectUserPerm(e.target.value)}
+                    >
+                      <option value="">-- اختر مستخدم --</option>
+                      {users.filter(u => !u.isAdmin).map(u => (
+                        <option key={u.id} value={u.id}>{u.username}</option>
+                      ))}
+                    </select>
+                 </div>
+
+                 {permUserId && (
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+                      {[
+                        { key: 'attendance', label: 'تسجيل حضور وانصراف' },
+                        { key: 'locationAttendance', label: 'حضور موقع (لوكيشن)' },
+                        { key: 'myLogs', label: 'صفحة إجازاتي ومأمورياتي' },
+                        { key: 'history', label: 'الأرشيف والسجل السابق' },
+                        { key: 'vacationRequest', label: 'إرسال طلبات إجازة' },
+                        { key: 'adminVacations', label: 'إدارة طلبات الإجازات (أدمن)' },
+                        { key: 'viewAllTodayRecords', label: 'مشاهدة سجلات الجميع اليوم' },
+                      ].map(perm => (
+                        <button 
+                          key={perm.key}
+                          onClick={() => handleTogglePerm(perm.key as keyof UserPermissions)}
+                          className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                            userPerms[perm.key as keyof UserPermissions] 
+                            ? 'bg-blue-600/10 border-blue-500 text-blue-500' 
+                            : 'bg-black/5 border-white/5 opacity-50'
+                          }`}
+                        >
+                          <span className="font-bold text-sm">{perm.label}</span>
+                          <span className="text-xl">{userPerms[perm.key as keyof UserPermissions] ? '✅' : '❌'}</span>
+                        </button>
+                      ))}
+                   </div>
+                 )}
+
+                 <button 
+                  disabled={!permUserId}
+                  onClick={savePermissions}
+                  className="w-full bg-blue-600 text-white py-4 rounded-3xl font-black text-lg shadow-2xl active:scale-95 transition-all mt-6 disabled:opacity-30"
+                >
+                  حفظ الصلاحيات المحدثة
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Existing Apperance, Add user sections ... */}
       <div className={`${cardClasses} p-6 rounded-3xl`}>
         <h2 className="text-xl font-bold mb-4">اعدادات المظهر</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
