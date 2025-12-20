@@ -18,14 +18,22 @@ interface HistoryPageProps {
 const HistoryPage: React.FC<HistoryPageProps> = ({ 
   records, user, users, onAddManualRecord, onDeleteRecord, onUpdateRecord, cardClasses, theme 
 }) => {
-  const [searchName, setSearchName] = useState('');
+  const [searchName, setSearchName] = useState(user.isAdmin ? '' : user.username);
   const [searchDate, setSearchDate] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState({ name: '', date: '' });
+  const [appliedSearch, setAppliedSearch] = useState({ 
+    name: user.isAdmin ? '' : user.username, 
+    date: '' 
+  });
 
-  // السجلات التي مر عليها أكثر من 24 ساعة (أو ببساطة ليست اليوم)
+  // السجلات التي مر عليها أكثر من 24 ساعة (الأرشيف)
+  // التعديل: تصفية السجلات لتظهر للموظف سجلاته فقط، وللمدير سجلات الجميع
   const historyOnly = useMemo(() => {
-    return records.filter(r => !isToday(r.date) && (r.isPrivate === false || r.isPrivate === undefined));
-  }, [records]);
+    return records.filter(r => 
+      !isToday(r.date) && 
+      (r.isPrivate === false || r.isPrivate === undefined) &&
+      (user.isAdmin || r.userName === user.username)
+    );
+  }, [records, user.isAdmin, user.username]);
 
   const filteredRecords = useMemo(() => {
     return historyOnly
@@ -40,7 +48,6 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
   const groupedRecords = useMemo(() => {
     const groups: { [key: string]: AttendanceRecord[] } = {};
     filteredRecords.forEach(record => {
-      // التجميع حسب اليوم والتاريخ ليكون منفصلاً
       const d = new Date(record.date);
       const dayKey = `${d.toLocaleDateString('ar-EG', { weekday: 'long' })} - ${formatDate(d)}`;
       if (!groups[dayKey]) groups[dayKey] = [];
@@ -70,6 +77,12 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
 
   const tableHeaderClasses = theme === 'dark' ? 'bg-zinc-900 text-zinc-400' : 'bg-white border-b border-gray-50 text-gray-400';
 
+  // التعديل: قائمة الموظفين المنسدلة تظهر اسم الموظف فقط لغير المديرين
+  const selectableUsers = useMemo(() => {
+    if (user.isAdmin) return users;
+    return users.filter(u => u.username === user.username);
+  }, [users, user.isAdmin, user.username]);
+
   return (
     <div className="space-y-6">
       <div className={`${cardClasses} p-6 rounded-3xl space-y-6`}>
@@ -90,8 +103,8 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
               onChange={(e) => setSearchName(e.target.value)}
               className="w-full bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">-- كل الموظفين --</option>
-              {users.map(u => (
+              {user.isAdmin && <option value="">-- كل الموظفين --</option>}
+              {selectableUsers.map(u => (
                 <option key={u.id} value={u.username}>{u.username}</option>
               ))}
             </select>

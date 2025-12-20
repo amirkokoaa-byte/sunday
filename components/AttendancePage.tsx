@@ -30,10 +30,8 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
 
   const isActionDisabled = !user.isAdmin && (hasSignedToday || hasVacationToday || hasMissionToday);
   
-  // Records to display (User's own or all for Admin)
-  const displayRecords = user.isAdmin 
-    ? todayRecordsAll 
-    : todayRecordsAll.filter(r => r.userName === user.username);
+  // التعديل: عرض سجلات الجميع لكل من يملك صلاحية الدخول للخانة
+  const displayRecords = todayRecordsAll;
 
   // Quick Stats
   const presentCount = todayRecordsAll.filter(r => r.type === RecordType.ATTENDANCE || r.type === RecordType.LOC_ATTENDANCE).length;
@@ -46,7 +44,6 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
     
     todayRecordsAll.forEach(record => {
       if (record.type === RecordType.ATTENDANCE || record.type === RecordType.LOC_ATTENDANCE) {
-        // Try to find the user to get their department if not in record
         let dept = record.department || 'عام';
         if (!record.department) {
            const u = users.find(usr => usr.username === record.userName);
@@ -110,7 +107,6 @@ const AttendancePage: React.FC<AttendancePageProps> = ({
              <h3 className="text-lg font-black">الحضور حسب القسم</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-             {/* Fix: Cast Object.entries to provide correct typing for data object to avoid 'unknown' type errors */}
              {(Object.entries(attendanceByDept) as [string, { present: string[], count: number }][]).map(([dept, data]) => (
                <div key={dept} className="bg-white/5 rounded-2xl p-4 border border-white/5">
                   <div className="flex justify-between items-center mb-2">
