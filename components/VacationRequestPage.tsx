@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, VacationRequest, VacationStatus } from '../types';
-import { db, ref, onValue, push } from '../utils/firebase';
+import { db, ref, onValue, push, remove, update } from '../utils/firebase';
 import { formatDate, getPeriodLabel } from '../utils/dateUtils';
 
 interface VacationRequestPageProps {
@@ -18,6 +18,10 @@ const VacationRequestPage: React.FC<VacationRequestPageProps> = ({ user, cardCla
   const [startDate, setStartDate] = useState('');
   const [daysCount, setDaysCount] = useState(1);
   const [returnDate, setReturnDate] = useState('');
+
+  // Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<VacationRequest | null>(null);
 
   useEffect(() => {
     const vRef = ref(db, 'vacationRequests');
@@ -58,6 +62,31 @@ const VacationRequestPage: React.FC<VacationRequestPageProps> = ({ user, cardCla
     });
   };
 
+  const handleDelete = (id: string) => {
+    if (confirm('هل أنت متأكد من حذف هذا الطلب؟')) {
+      const vRef = ref(db, `vacationRequests/${id}`);
+      remove(vRef).then(() => alert('تم حذف الطلب بنجاح'));
+    }
+  };
+
+  const handleEditClick = (req: VacationRequest) => {
+    setEditingRequest({ ...req });
+    setShowEditModal(true);
+  };
+
+  const handleUpdate = () => {
+    if (!editingRequest) return;
+    const vRef = ref(db, `vacationRequests/${editingRequest.id}`);
+    update(vRef, {
+      startDate: editingRequest.startDate,
+      returnDate: editingRequest.returnDate,
+      daysCount: editingRequest.daysCount
+    }).then(() => {
+      alert('تم تحديث الطلب بنجاح');
+      setShowEditModal(false);
+    });
+  };
+
   const groupedRequests = useMemo(() => {
     const groups: { [key: string]: VacationRequest[] } = {};
     requests.forEach(r => {
@@ -90,7 +119,6 @@ const VacationRequestPage: React.FC<VacationRequestPageProps> = ({ user, cardCla
         {Object.keys(groupedRequests).length === 0 ? (
           <div className={`${cardClasses} p-20 text-center opacity-40 rounded-3xl`}>لا توجد طلبات إجازة مسجلة</div>
         ) : (
-          // Add explicit type casting to Object.entries to resolve 'map' property error on unknown type
           (Object.entries(groupedRequests) as [string, VacationRequest[]][]).map(([period, items]) => (
             <div key={period} className={`${cardClasses} rounded-3xl overflow-hidden`}>
                <div className="bg-white/5 p-4 border-b border-white/10 font-bold">{period}</div>
@@ -109,6 +137,12 @@ const VacationRequestPage: React.FC<VacationRequestPageProps> = ({ user, cardCla
                         <span>عدد الأيام: {req.daysCount}</span>
                         <span>العودة: {req.returnDate}</span>
                       </div>
+                      {user.isAdmin && (
+                        <div className="flex gap-2 pt-2 border-t border-white/5 mt-2">
+                           <button onClick={() => handleEditClick(req)} className="text-blue-500 font-bold text-xs hover:underline flex items-center gap-1">✏️ تعديل</button>
+                           <button onClick={() => handleDelete(req.id)} className="text-red-500 font-bold text-xs hover:underline flex items-center gap-1">🗑️ حذف</button>
+                        </div>
+                      )}
                    </div>
                  ))}
                </div>
@@ -142,6 +176,35 @@ const VacationRequestPage: React.FC<VacationRequestPageProps> = ({ user, cardCla
                   onClick={handleRequest}
                   className="w-full bg-blue-600 text-white py-4 rounded-3xl font-black text-lg shadow-2xl active:scale-95 transition-all mt-4"
                 >طلب إجازة</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {showEditModal && editingRequest && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+           <div className={`${cardClasses} w-full max-w-md p-8 rounded-[40px] space-y-6 shadow-2xl`}>
+              <div className="flex justify-between items-center">
+                 <h3 className="text-2xl font-black">✏️ تعديل طلب الإجازة</h3>
+                 <button onClick={() => setShowEditModal(false)} className="text-2xl opacity-50">✖</button>
+              </div>
+              <div className="space-y-4">
+                 <div className="space-y-1">
+                    <label className="text-xs font-bold opacity-60 mr-2">تاريخ البداية</label>
+                    <input type="date" value={editingRequest.startDate} onChange={e=>setEditingRequest({...editingRequest, startDate: e.target.value})} className="w-full p-4 bg-black/5 dark:bg-white/10 rounded-2xl outline-none" />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-xs font-bold opacity-60 mr-2">عدد الأيام</label>
+                    <input type="number" value={editingRequest.daysCount} onChange={e=>setEditingRequest({...editingRequest, daysCount: parseInt(e.target.value)})} className="w-full p-4 bg-black/5 dark:bg-white/10 rounded-2xl outline-none" />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-xs font-bold opacity-60 mr-2">تاريخ العودة</label>
+                    <input type="date" value={editingRequest.returnDate} onChange={e=>setEditingRequest({...editingRequest, returnDate: e.target.value})} className="w-full p-4 bg-black/5 dark:bg-white/10 rounded-2xl outline-none" />
+                 </div>
+                 <button 
+                  onClick={handleUpdate}
+                  className="w-full bg-blue-600 text-white py-4 rounded-3xl font-black text-lg shadow-2xl active:scale-95 transition-all mt-4"
+                >تحديث الطلب</button>
               </div>
            </div>
         </div>

@@ -7,6 +7,7 @@ import { exportToCSV } from '../utils/excelUtils';
 interface HistoryPageProps {
   records: AttendanceRecord[];
   user: User;
+  users: User[];
   onAddManualRecord: (type: RecordType, date: Date, name: string) => void;
   onDeleteRecord: (id: string) => void;
   onUpdateRecord: (id: string, updates: Partial<AttendanceRecord>) => void;
@@ -15,7 +16,7 @@ interface HistoryPageProps {
 }
 
 const HistoryPage: React.FC<HistoryPageProps> = ({ 
-  records, user, onAddManualRecord, onDeleteRecord, onUpdateRecord, cardClasses, theme 
+  records, user, users, onAddManualRecord, onDeleteRecord, onUpdateRecord, cardClasses, theme 
 }) => {
   const [searchName, setSearchName] = useState('');
   const [searchDate, setSearchDate] = useState('');
@@ -84,11 +85,16 @@ const HistoryPage: React.FC<HistoryPageProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <label className="text-xs opacity-60 mr-2 font-bold">البحث باسم الموظف</label>
-            <input
-              type="text" placeholder="اسم الموظف..." value={searchName}
+            <select
+              value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
               className="w-full bg-black/5 dark:bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">-- كل الموظفين --</option>
+              {users.map(u => (
+                <option key={u.id} value={u.username}>{u.username}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1">
             <label className="text-xs opacity-60 mr-2 font-bold">البحث بالتاريخ (يوم/شهر/سنة)</label>

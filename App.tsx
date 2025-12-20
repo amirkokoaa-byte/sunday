@@ -288,6 +288,7 @@ const App: React.FC = () => {
             <AdminVacationRequestsPage 
               cardClasses={cardClasses[theme]}
               theme={theme}
+              users={users}
             />
           )}
           {currentPage === 'my-logs' && (
@@ -305,6 +306,7 @@ const App: React.FC = () => {
             <HistoryPage 
               records={records} 
               user={user}
+              users={users}
               onAddManualRecord={(type, date, name) => handleAddRecord(type, date, false, name)}
               onDeleteRecord={handleDeleteRecord}
               onUpdateRecord={handleUpdateRecord}
